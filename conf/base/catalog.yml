@@ -1,4 +1,71 @@
-# Here you can define all your datasets by using simple YAML syntax.
-#
-# Documentation for this file format can be found in "The Data Catalog"
-# Link: https://docs.kedro.org/en/stable/catalog-data/introduction/#data-catalog
+# ==================
+# RAW DATA
+# ==================
+application_train:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/application_train.csv
+
+application_test:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/application_test.csv
+
+bureau:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/bureau.csv
+
+bureau_balance:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/bureau_balance.csv
+
+previous_application:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/previous_application.csv
+
+pos_cash_balance:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/POS_CASH_balance.csv
+
+installments_payments:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/installments_payments.csv
+
+credit_card_balance:
+  type: pandas.CSVDataset
+  filepath: data/01_raw/credit_card_balance.csv
+
+
+# DATA QUALITY OUTPUTS
+
+
+application_train_validated:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/application_train_validated.csv
+
+data_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/data_quality_report.csv
+
+
+bureau_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/bureau_quality_report.csv
+
+bureau_balance_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/bureau_balance_quality_report.csv
+
+previous_application_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/previous_application_quality_report.csv
+
+pos_cash_balance_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/pos_cash_balance_quality_report.csv
+
+installments_payments_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/installments_payments_quality_report.csv
+
+credit_card_balance_quality_report:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/credit_card_balance_quality_report.csv
