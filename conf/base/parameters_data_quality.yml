@@ -1,5 +1,280 @@
-# This is a boilerplate parameters config generated for pipeline 'data_quality'
-# using Kedro 1.4.0.
-#
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# This is the parameters config for pipeline 'data_quality'.
+
+
+numerical_rules:
+  AMT_INCOME_TOTAL:
+    min_value: 1
+  AMT_CREDIT:
+    min_value: 1
+  DAYS_BIRTH:
+    max_value: -1
+
+  CNT_CHILDREN:
+    min_value: 0
+
+  EXT_SOURCE_2:
+    min_value: 0
+    max_value: 1
+
+  EXT_SOURCE_3:
+    min_value: 0
+    max_value: 1
+
+  EXT_SOURCE_1:
+    min_value: 0
+    max_value: 1
+
+  AMT_ANNUITY:
+    min_value: 1
+
+  AMT_REQ_CREDIT_BUREAU_HOUR:
+    min_value: 0
+  AMT_REQ_CREDIT_BUREAU_DAY:
+    min_value: 0
+  AMT_REQ_CREDIT_BUREAU_WEEK:
+    min_value: 0
+  AMT_REQ_CREDIT_BUREAU_MON:
+    min_value: 0
+  AMT_REQ_CREDIT_BUREAU_QRT:
+    min_value: 0
+  AMT_REQ_CREDIT_BUREAU_YEAR:
+    min_value: 0
+
+  HOUR_APPR_PROCESS_START:
+    min_value: 0
+    max_value: 23
+
+  REGION_POPULATION_RELATIVE:
+    min_value: 0
+
+  OBS_30_CNT_SOCIAL_CIRCLE:
+    min_value: 0
+  DEF_30_CNT_SOCIAL_CIRCLE:
+    min_value: 0
+  DEF_60_CNT_SOCIAL_CIRCLE:
+    min_value: 0
+
+  DAYS_LAST_PHONE_CHANGE:
+    max_value: 0
+
+  DAYS_REGISTRATION:
+    max_value: 0
+
+  DAYS_ID_PUBLISH:
+    max_value: 0
+
+  CNT_FAM_MEMBERS:
+    min_value: 1
+
+  APARTMENTS_AVG:
+    min_value: 0
+    max_value: 1
+  BASEMENTAREA_AVG:
+    min_value: 0
+    max_value: 1
+  YEARS_BEGINEXPLUATATION_AVG:
+    min_value: 0
+    max_value: 1
+  ELEVATORS_AVG:
+    min_value: 0
+    max_value: 1
+  ENTRANCES_AVG:
+    min_value: 0
+    max_value: 1
+  FLOORSMAX_AVG:
+    min_value: 0
+    max_value: 1
+  LANDAREA_AVG:
+    min_value: 0
+    max_value: 1
+  NONLIVINGAREA_AVG:
+    min_value: 0
+    max_value: 1
+
+categorical_rules:
+
+  CODE_GENDER: ["F", "M", "XNA"]
+  NAME_CONTRACT_TYPE: ["Cash loans", "Revolving loans"]
+  FLAG_OWN_CAR: ["Y", "N"]
+  FLAG_OWN_REALTY: ["Y", "N"]
+  EMERGENCYSTATE_MODE: ["Yes", "No"]
+  NAME_TYPE_SUITE: ["Children", "Family", "Group of people", "Other_A", "Other_B", "Spouse, partner", "Unaccompanied"]
+  NAME_INCOME_TYPE: ["Businessman", "Commercial associate", "Maternity leave", "Pensioner", "State servant", "Student", "Unemployed", "Working"]
+  NAME_EDUCATION_TYPE: ["Academic degree", "Higher education", "Incomplete higher", "Lower secondary", "Secondary / secondary special"]
+  NAME_FAMILY_STATUS: ["Civil marriage", "Married", "Separated", "Single / not married", "Unknown", "Widow"]
+  NAME_HOUSING_TYPE: ["Co-op apartment", "House / apartment", "Municipal apartment", "Office apartment", "Rented apartment", "With parents"]
+  OCCUPATION_TYPE: ["Accountants", "Cleaning staff", "Cooking staff", "Core staff", "Drivers", "HR staff", "High skill tech staff", "IT staff", "Laborers", "Low-skill Laborers", "Managers", "Medicine staff", "Private service staff", "Realty agents", "Sales staff", "Secretaries", "Security staff", "Waiters/barmen staff"]
+  ORGANIZATION_TYPE: ["Advertising", "Agriculture", "Bank", "Business Entity Type 1", "Business Entity Type 2", "Business Entity Type 3", "Cleaning", "Construction", "Culture", "Electricity", "Emergency", "Government", "Hotel", "Housing", "Industry: type 1", "Industry: type 10", "Industry: type 11", "Industry: type 12", "Industry: type 13", "Industry: type 2", "Industry: type 3", "Industry: type 4", "Industry: type 5", "Industry: type 6", "Industry: type 7", "Industry: type 8", "Industry: type 9", "Insurance", "Kindergarten", "Legal Services", "Medicine", "Military", "Mobile", "Other", "Police", "Postal", "Realtor", "Religion", "Restaurant", "School", "Security", "Security Ministries", "Self-employed", "Services", "Telecom", "Trade: type 1", "Trade: type 2", "Trade: type 3", "Trade: type 4", "Trade: type 5", "Trade: type 6", "Trade: type 7", "Transport: type 1", "Transport: type 2", "Transport: type 3", "Transport: type 4", "University", "XNA"]
+  WEEKDAY_APPR_PROCESS_START: ["FRIDAY", "MONDAY", "SATURDAY", "SUNDAY", "THURSDAY", "TUESDAY", "WEDNESDAY"]
+  REGION_RATING_CLIENT: [1, 2, 3]
+  HOUSETYPE_MODE: ["block of flats", "specific housing", "terraced house"]
+  WALLSMATERIAL_MODE: ["Block", "Mixed", "Monolithic", "Others", "Panel", "Stone, brick", "Wooden"]
+  FLAG_DOCUMENT_2: [0, 1]
+  FLAG_DOCUMENT_3: [0, 1]
+  FLAG_DOCUMENT_4: [0, 1]
+  FLAG_DOCUMENT_5: [0, 1]
+  FLAG_DOCUMENT_6: [0, 1]
+  FLAG_DOCUMENT_7: [0, 1]
+  FLAG_DOCUMENT_8: [0, 1]
+  FLAG_DOCUMENT_9: [0, 1]
+  FLAG_DOCUMENT_10: [0, 1]
+  FLAG_DOCUMENT_11: [0, 1]
+  FLAG_DOCUMENT_12: [0, 1]
+  FLAG_DOCUMENT_13: [0, 1]
+  FLAG_DOCUMENT_14: [0, 1]
+  FLAG_DOCUMENT_15: [0, 1]
+  FLAG_DOCUMENT_16: [0, 1]
+  FLAG_DOCUMENT_17: [0, 1]
+  FLAG_DOCUMENT_18: [0, 1]
+  FLAG_DOCUMENT_19: [0, 1]
+  FLAG_DOCUMENT_20: [0, 1]
+  FLAG_DOCUMENT_21: [0, 1]
+  FLAG_MOBIL: [0, 1]
+  FLAG_WORK_PHONE: [0, 1]
+  FLAG_CONT_MOBILE: [0, 1]
+  FLAG_PHONE: [0, 1]
+  FLAG_EMAIL: [0, 1]
+  REG_REGION_NOT_LIVE_REGION: [0, 1]
+  REG_REGION_NOT_WORK_REGION: [0, 1]
+  LIVE_REGION_NOT_WORK_REGION: [0, 1]
+  REG_CITY_NOT_LIVE_CITY: [0, 1]
+  REG_CITY_NOT_WORK_CITY: [0, 1]
+  LIVE_CITY_NOT_WORK_CITY: [0, 1]
+
+target_rules:
+  TARGET: [0, 1]
+
+unique_columns:
+  - SK_ID_CURR
+
+
+# SECONDARY TABLES
+
+
+# bureau.csv: one row per credit reported to the Credit Bureau for a SK_ID_CURR
+# (SK_ID_CURR repeats by design -- SK_ID_BUREAU is the row-level primary key)
+bureau_numerical_rules:
+  AMT_CREDIT_SUM:
+    min_value: 0
+  DAYS_CREDIT:
+    max_value: 0
+
+bureau_categorical_rules:
+  CREDIT_ACTIVE: ["Closed", "Active", "Sold", "Bad debt"]
+  CREDIT_CURRENCY: ["currency 1", "currency 2", "currency 3", "currency 4"]
+
+bureau_unique_columns:
+  - SK_ID_BUREAU
+
+bureau_not_null_columns:
+  - SK_ID_CURR
+  - SK_ID_BUREAU
+
+bureau_balance_categorical_rules:
+  STATUS: ["0", "1", "2", "3", "4", "5", "C", "X"]
+
+bureau_balance_numerical_rules:
+  MONTHS_BALANCE:
+    max_value: 0
+
+bureau_balance_not_null_columns:
+  - SK_ID_BUREAU
+  - MONTHS_BALANCE
+
+
+bureau_balance_unique_columns: []
+
+
+previous_application_numerical_rules:
+  AMT_CREDIT:
+    min_value: 0
+  AMT_ANNUITY:
+    min_value: 0
+  AMT_APPLICATION:
+    min_value: 0
+
+previous_application_categorical_rules:
+  NAME_CONTRACT_TYPE: ["Consumer loans", "Cash loans", "Revolving loans", "XNA"]
+  NAME_CONTRACT_STATUS: ["Approved", "Refused", "Canceled", "Unused offer"]
+
+previous_application_unique_columns:
+  - SK_ID_PREV
+
+previous_application_not_null_columns:
+  - SK_ID_CURR
+  - SK_ID_PREV
+
+# POS_CASH_balance.csv: monthly snapshot of POS and cash loans
+pos_cash_balance_numerical_rules:
+  MONTHS_BALANCE:
+    max_value: -1
+  CNT_INSTALMENT:
+    min_value: 1
+  CNT_INSTALMENT_FUTURE:
+    min_value: 0
+
+pos_cash_balance_categorical_rules:
+  NAME_CONTRACT_STATUS:
+    [
+      "Active",
+      "Completed",
+      "Signed",
+      "Approved",
+      "Returned to the store",
+      "Demand",
+      "Canceled",
+      "XNA",
+      "Amortized debt",
+    ]
+
+pos_cash_balance_not_null_columns:
+  - SK_ID_CURR
+  - SK_ID_PREV
+  - MONTHS_BALANCE
+
+
+pos_cash_balance_unique_columns: []
+
+
+installments_payments_numerical_rules:
+  AMT_INSTALMENT:
+    min_value: 0
+  AMT_PAYMENT:
+    min_value: 0
+  DAYS_INSTALMENT:
+    max_value: -1
+
+installments_payments_not_null_columns:
+  - SK_ID_CURR
+  - SK_ID_PREV
+  - NUM_INSTALMENT_NUMBER
+
+installments_payments_categorical_rules: {}
+installments_payments_unique_columns: []
+
+# credit_card_balance.csv: monthly snapshot of credit card balances
+credit_card_balance_numerical_rules:
+  MONTHS_BALANCE:
+    max_value: -1
+  AMT_CREDIT_LIMIT_ACTUAL:
+    min_value: 0
+
+credit_card_balance_categorical_rules:
+  NAME_CONTRACT_STATUS:
+    [
+      "Active",
+      "Completed",
+      "Demand",
+      "Signed",
+      "Sent proposal",
+      "Refused",
+      "Approved",
+    ]
+
+credit_card_balance_not_null_columns:
+  - SK_ID_CURR
+  - SK_ID_PREV
+  - MONTHS_BALANCE
+
+# credit_card_balance has no single-column primary key (it's (SK_ID_PREV, MONTHS_BALANCE))
+credit_card_balance_unique_columns: []
