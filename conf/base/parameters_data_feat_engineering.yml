@@ -1,5 +1,46 @@
-# This is a boilerplate parameters config generated for pipeline 'data_feat_engineering'
-# using Kedro 1.4.0.
-#
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+ohe_cardinality_threshold: 10
+target_encoding_n_folds: 5
+target_encoding_smoothing: 10
+target_encoding_random_state: 42
+ext_source_cols:
+- EXT_SOURCE_1
+- EXT_SOURCE_2
+- EXT_SOURCE_3
+binary_map:
+  CODE_GENDER:
+    F: 0
+    M: 1
+  FLAG_OWN_CAR:
+    N: 0
+    Y: 1
+  FLAG_OWN_REALTY:
+    N: 0
+    Y: 1
+  EMERGENCYSTATE_MODE:
+    'No': 0
+    'Yes': 1
+secondary_agg_fill_value: 0
+dpd_status_codes:
+- '1'
+- '2'
+- '3'
+- '4'
+- '5'
+dpd_def_status_codes:
+- '4'
+- '5'
+financial_ratio_features:
+- CREDIT_INCOME_RATIO
+- ANNUITY_INCOME_RATIO
+- CREDIT_ANNUITY_RATIO
+- INCOME_PER_PERSON
+- PAYMENT_RATE
+- CHILDREN_RATIO
+days_derived_features:
+- AGE_YEARS
+- EMPLOYED_YEARS
+- REGISTRATION_YEARS
+- ID_PUBLISH_YEARS
+- PHONE_CHANGE_YEARS
+- EMPLOYED_TO_AGE_RATIO
+- REG_TO_PUBLISH_RATIO
