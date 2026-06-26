@@ -56,7 +56,11 @@ categorical_anomalies:
     Unknown: null
   ORGANIZATION_TYPE:
     XNA: Unknown_Org
+categorical_missing_as_category:
+  OCCUPATION_TYPE: Unknown_Occ
+  NAME_TYPE_SUITE: Unknown_Suite
 numerical_imputation_strategy: median
+binary_flag_imputation_strategy: mode
 categorical_imputation_strategy: mode
 secondary_table_null_fill:
   previous_application:
