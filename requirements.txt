@@ -44,6 +44,7 @@ graphene==3.4.3
 graphql-core==3.2.11
 graphql-relay==3.2.0
 great_expectations==1.18.1
+featuretools==1.31.0
 greenlet==3.5.1
 gunicorn==26.0.0
 h11==0.16.0
