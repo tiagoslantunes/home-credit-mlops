@@ -33,12 +33,18 @@ def _make_app_df(n: int = 80, seed: int = 42, has_target: bool = True) -> pd.Dat
             "DAYS_EMPLOYED":             rng.integers(-5_000, 0, n),
             "DAYS_REGISTRATION":         rng.integers(-10_000, 0, n),
             "DAYS_ID_PUBLISH":           rng.integers(-5_000, 0, n),
+            "DAYS_LAST_PHONE_CHANGE":    rng.integers(-3_000, 0, n),
             "CNT_CHILDREN":              rng.integers(0, 4, n),
             "CNT_FAM_MEMBERS":           rng.integers(1, 6, n),
             "EXT_SOURCE_1":              rng.uniform(0, 1, n),
             "EXT_SOURCE_2":              rng.uniform(0, 1, n),
             "EXT_SOURCE_3":              rng.uniform(0, 1, n),
             "CODE_GENDER":               rng.choice(["M", "F"], n),
+            # >10 unique values → survives OHE threshold, used for target encoding tests
+            "OCCUPATION_TYPE":           rng.choice(["Laborers", "Sales staff", "Core staff",
+                                                      "Managers", "Drivers", "High skill tech staff",
+                                                      "Accountants", "Medicine staff", "Security staff",
+                                                      "Cooking staff", "Cleaning staff"], n),
             "FLAG_OWN_CAR":              rng.choice(["Y", "N"], n),
             "FLAG_OWN_REALTY":           rng.choice(["Y", "N"], n),
             # OHE-able columns (cardinality ≤ 10) — needed to exercise _encode_ohe path
@@ -60,7 +66,6 @@ PARAMS = {
     "id_column": "SK_ID_CURR",
     "ext_source_cols": ["EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3"],
     "binary_map": {
-        "CODE_GENDER":    {"F": 0, "M": 1},
         "FLAG_OWN_CAR":   {"N": 0, "Y": 1},
         "FLAG_OWN_REALTY": {"N": 0, "Y": 1},
     },
@@ -109,6 +114,11 @@ class TestCreateFeatures:
         train, _, _ = self._run()
         assert "EMPLOYED_YEARS" in train.columns
         assert (train["EMPLOYED_YEARS"] >= 0).all()
+
+    def test_phone_change_years_created(self):
+        train, _, _ = self._run()
+        assert "PHONE_CHANGE_YEARS" in train.columns
+        assert (train["PHONE_CHANGE_YEARS"] >= 0).all()
 
     def test_ext_source_aggregates_created(self):
         train, _, _ = self._run()
@@ -164,8 +174,15 @@ class TestSelectFeatures:
         )
 
     def test_x_train_has_correct_n_features(self):
-        X_train, _, _, _, _, _ = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
-        assert X_train.shape[1] == PARAMS["n_features_to_select"]
+        X_train, _, _, _, _, best_cols = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
+        assert len(best_cols) == PARAMS["n_features_to_select"]
+        assert X_train.shape[1] == PARAMS["n_features_to_select"] + 1  # +1 for SK_ID_CURR
+
+    def test_x_train_contains_id_column(self):
+        X_train, _, X_val, _, X_test, _ = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
+        assert "SK_ID_CURR" in X_train.columns
+        assert "SK_ID_CURR" in X_val.columns
+        assert "SK_ID_CURR" in X_test.columns
 
     def test_x_val_has_same_columns_as_x_train(self):
         X_train, _, X_val, _, _, _ = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
@@ -202,3 +219,72 @@ class TestSelectFeatures:
     def test_x_train_no_nulls(self):
         X_train, _, _, _, _, _ = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
         assert X_train.isnull().sum().sum() == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# select_features schema error tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSelectFeaturesSchemaError:
+
+    def _base(self):
+        return create_features(
+            _make_app_df(100, seed=42, has_target=True),
+            _make_app_df(25,  seed=77, has_target=True),
+            _make_app_df(20,  seed=88, has_target=False),
+            PARAMS,
+        )
+
+    def test_val_schema_mismatch_raises(self):
+        train_f, val_f, test_f = self._base()
+        # Strip all features from val — any RFE-selected column will be missing
+        val_empty = val_f[["TARGET"]]
+        with pytest.raises(ValueError, match="X_val missing columns"):
+            select_features(train_f, val_empty, test_f, PARAMS)
+
+    def test_test_schema_mismatch_raises(self):
+        train_f, val_f, test_f = self._base()
+        # Strip all features from test
+        test_empty = pd.DataFrame(index=test_f.index)
+        with pytest.raises(ValueError, match="X_test missing columns"):
+            select_features(train_f, val_f, test_empty, PARAMS)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Target encoding tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+PARAMS_TE = {**PARAMS, "target_encoding_cols": ["OCCUPATION_TYPE"]}
+
+
+class TestTargetEncoding:
+
+    def _run(self):
+        return create_features(
+            _make_app_df(80, seed=42, has_target=True),
+            _make_app_df(20, seed=99, has_target=True),
+            _make_app_df(15, seed=77, has_target=False),
+            PARAMS_TE,
+        )
+
+    def test_te_column_created_in_train_and_val(self):
+        train, val, _ = self._run()
+        assert "OCCUPATION_TYPE_TE" in train.columns
+        assert "OCCUPATION_TYPE_TE" in val.columns
+
+    def test_original_column_dropped(self):
+        train, val, test = self._run()
+        assert "OCCUPATION_TYPE" not in train.columns
+        assert "OCCUPATION_TYPE" not in val.columns
+        assert "OCCUPATION_TYPE" not in test.columns
+
+    def test_te_values_are_probabilities(self):
+        train, _, _ = self._run()
+        assert (train["OCCUPATION_TYPE_TE"] >= 0).all()
+        assert (train["OCCUPATION_TYPE_TE"] <= 1).all()
+
+    def test_no_object_columns_after_te(self):
+        train, val, test = self._run()
+        assert train.select_dtypes(include="object").empty
+        assert val.select_dtypes(include="object").empty
+        assert test.select_dtypes(include="object").empty
