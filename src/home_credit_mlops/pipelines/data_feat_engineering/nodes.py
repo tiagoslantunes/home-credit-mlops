@@ -1,8 +1,4 @@
 """
-This is a boilerplate pipeline 'data_feat_engineering'
-generated using Kedro 1.4.0
-"""
-"""
 Data Feature Engineering pipeline nodes.
 
 Three public nodes (called by pipeline.py in order):
@@ -47,6 +43,8 @@ def _add_days_features(df: pd.DataFrame) -> pd.DataFrame:
     df["REGISTRATION_YEARS"]    = -df["DAYS_REGISTRATION"] / 365.25
     df["ID_PUBLISH_YEARS"]      = -df["DAYS_ID_PUBLISH"]   / 365.25
     df["EMPLOYED_TO_AGE_RATIO"] = df["EMPLOYED_YEARS"] / (df["AGE_YEARS"] + 1e-8)
+    if "DAYS_LAST_PHONE_CHANGE" in df.columns:
+        df["PHONE_CHANGE_YEARS"] = -df["DAYS_LAST_PHONE_CHANGE"] / 365.25
     return df
 
 
@@ -251,16 +249,17 @@ def select_features(
     target_col = parameters["target_column"]
     id_col     = parameters.get("id_column", "SK_ID_CURR")
 
-    drop_train = [c for c in [target_col, id_col] if c in train.columns]
-    X_train    = train.drop(columns=drop_train)
-    y_train    = train[[target_col]]
+    y_train = train[[target_col]]
+    y_val   = validation[[target_col]] if target_col in validation.columns else pd.DataFrame()
 
-    drop_val = [c for c in [target_col, id_col] if c in validation.columns]
-    X_val    = validation.drop(columns=drop_val, errors="ignore")
-    y_val    = validation[[target_col]] if target_col in validation.columns else pd.DataFrame()
+    # Pure feature matrices for RFE (no target, no id)
+    feat_drop_train = [c for c in [target_col, id_col] if c in train.columns]
+    feat_drop_val   = [c for c in [target_col, id_col] if c in validation.columns]
+    feat_drop_test  = [c for c in [id_col] if c in test.columns]
 
-    drop_test = [c for c in [id_col] if c in test.columns]
-    X_test    = test.drop(columns=drop_test, errors="ignore")
+    X_train_feats = train.drop(columns=feat_drop_train)
+    X_val_feats   = validation.drop(columns=feat_drop_val, errors="ignore")
+    X_test_feats  = test.drop(columns=feat_drop_test, errors="ignore")
 
     n_select   = parameters.get("n_features_to_select", 50)
     step       = parameters.get("rfe_step", 5)
@@ -271,29 +270,36 @@ def select_features(
 
     logger.info(
         "RFE: selecting %d from %d features (step=%d) with RandomForest ...",
-        n_select, X_train.shape[1], step,
+        n_select, X_train_feats.shape[1], step,
     )
     estimator = RandomForestClassifier(**est_params)
     rfe       = RFE(estimator, n_features_to_select=n_select, step=step)
-    rfe.fit(X_train, y_train.values.ravel())
+    rfe.fit(X_train_feats, y_train.values.ravel())
 
-    best_cols = X_train.columns[rfe.get_support()].tolist()
+    best_cols = X_train_feats.columns[rfe.get_support()].tolist()
     logger.info("RFE selected %d features", len(best_cols))
 
-    # Guard: log if any best_col is missing from val or test
-    val_cols  = [c for c in best_cols if c in X_val.columns]
-    test_cols = [c for c in best_cols if c in X_test.columns]
-    if len(val_cols) < len(best_cols):
-        logger.warning("X_val missing %d selected features", len(best_cols) - len(val_cols))
-    if len(test_cols) < len(best_cols):
-        logger.warning("X_test missing %d selected features", len(best_cols) - len(test_cols))
+    missing_val  = set(best_cols) - set(X_val_feats.columns)
+    missing_test = set(best_cols) - set(X_test_feats.columns)
+    if missing_val:
+        raise ValueError(f"X_val missing columns after create_features: {missing_val}")
+    if missing_test:
+        raise ValueError(f"X_test missing columns after create_features: {missing_test}")
+
+    # Prepend SK_ID_CURR alongside selected features for feature store linkage
+    id_cols_train = [id_col] if id_col in train.columns else []
+    id_cols_val   = [id_col] if id_col in validation.columns else []
+    id_cols_test  = [id_col] if id_col in test.columns else []
 
     return (
-        X_train[best_cols],
+        pd.concat([train[id_cols_train].reset_index(drop=True),
+                   X_train_feats[best_cols].reset_index(drop=True)], axis=1),
         y_train,
-        X_val[val_cols],
+        pd.concat([validation[id_cols_val].reset_index(drop=True),
+                   X_val_feats[best_cols].reset_index(drop=True)], axis=1),
         y_val,
-        X_test[test_cols],
+        pd.concat([test[id_cols_test].reset_index(drop=True),
+                   X_test_feats[best_cols].reset_index(drop=True)], axis=1),
         best_cols,
     )
 
@@ -321,7 +327,7 @@ def to_feature_store(
     metadata dict (saved to 08_reporting/feature_store_metadata.json)
     """
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(override=True)
 
     api_key      = os.getenv("HOPSWORKS_API_KEY", "")
     project_name = os.getenv(
@@ -338,10 +344,15 @@ def to_feature_store(
 
     import hopsworks
 
-    project = hopsworks.login(api_key_value=api_key, project=project_name)
+    project = hopsworks.login(
+    host="eu-west.cloud.hopsworks.ai",
+    api_key_value=api_key,
+    project=project_name
+)
     fs      = project.get_feature_store()
 
     target_col = parameters["target_column"]
+    id_col     = parameters.get("id_column", "SK_ID_CURR")
     fg_name    = parameters.get("hopsworks_feature_group_name", "home_credit_features")
     fg_version = parameters.get("hopsworks_feature_group_version", 1)
 
@@ -357,8 +368,11 @@ def to_feature_store(
     test_df             = X_test.copy()
     test_df[target_col] = -1  # sentinel: no ground-truth labels for test rows
     test_df["split"]    = "test"
+    
+    import datetime
 
     upload_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
+    upload_df["event_time"] = datetime.datetime.now()
 
     fg = fs.get_or_create_feature_group(
         name=fg_name,
@@ -368,33 +382,49 @@ def to_feature_store(
             "Contains train / validation / test splits (column: split). "
             "TARGET=-1 marks unlabeled test rows."
         ),
-        primary_key=[],
-        event_time=None,
+        primary_key=[id_col] if id_col in X_train.columns else [],
+        event_time="event_time",
         online_enabled=False,
+        time_travel_format="HUDI",
     )
-    fg.insert(upload_df, write_options={"wait_for_job": False})
+    # Clean columns names for Hopsworks
+    upload_df.columns = (
+        upload_df.columns
+        .str.lower()
+        .str.replace(r'[^a-z0-9_]', '_', regex=True)
+        .str.replace(r'_+', '_', regex=True)
+        .str.strip('_')
+    )
+ 
+    # Upload em batches para não dar timeout no Kafka
+    batch_size = 10000
+    for i in range(0, len(upload_df), batch_size):
+        batch = upload_df.iloc[i:i+batch_size]
+        fg.insert(batch, write_options={"wait_for_job": False})
+        logger.info(f"Uploaded batch {i//batch_size + 1}: rows {i} to {i+len(batch)}")
+    # fg.insert(upload_df, overwrite = True, write_options={"wait_for_job": True, "use_spark": False,})
 
-    fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
-    fg.update_statistics_config()
-    fg.compute_statistics()
+    #fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
+    #fg.update_statistics_config()
+    # fg.compute_statistics()
 
     fv_name    = parameters.get("hopsworks_feature_view_name", "home_credit_feature_view")
     fv_version = parameters.get("hopsworks_feature_view_version", 1)
-    fs.get_or_create_feature_view(
-        name=fv_name,
-        version=fv_version,
-        description="Home Credit Default Risk — full feature view (all splits)",
-        labels=[target_col],
-        query=fg.select_all(),
-    )
+    # fs.get_or_create_feature_view(
+      # name=fv_name,
+      #  version=fv_version,
+       # description="Home Credit Default Risk — full feature view (all splits)",
+        #labels=["target"],
+        # query=fg.select_all(),
+    # )
 
     metadata = {
         "status": "success",
         "project": project_name,
         "feature_group": fg_name,
         "feature_group_version": fg_version,
-        "feature_view": fv_name,
-        "feature_view_version": fv_version,
+        #"feature_view": fv_name,
+        "#feature_view_version": fv_version,
         "n_features": X_train.shape[1],
         "n_rows_train": len(X_train),
         "n_rows_val": len(X_val),
