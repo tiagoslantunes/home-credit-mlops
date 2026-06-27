@@ -121,3 +121,66 @@ application_test_cleaned:
   filepath: data/03_primary/application_test_cleaned.csv
   save_args:
     index: false
+    
+    # ── 04_feature ────────────────────────────────────────────────────────────────
+# Outputs of create_features node (engineered, before feature selection)
+
+application_train_features:
+  type: pandas.CSVDataset
+  filepath: data/04_feature/application_train_features.csv
+
+application_validation_features:
+  type: pandas.CSVDataset
+  filepath: data/04_feature/application_validation_features.csv
+
+application_test_features:
+  type: pandas.CSVDataset
+  filepath: data/04_feature/application_test_features.csv
+
+
+# ── 05_model_input ────────────────────────────────────────────────────────────
+# Outputs of select_features node (RFE-selected, X/y split, ready for model)
+# y_test does not exist — test split has no ground-truth labels
+
+X_train_data:
+  type: pandas.CSVDataset
+  filepath: data/05_model_input/X_train.csv
+
+y_train_data:
+  type: pandas.CSVDataset
+  filepath: data/05_model_input/y_train.csv
+
+X_val_data:
+  type: pandas.CSVDataset
+  filepath: data/05_model_input/X_val.csv
+
+y_val_data:
+  type: pandas.CSVDataset
+  filepath: data/05_model_input/y_val.csv
+
+X_test_data:
+  type: pandas.CSVDataset
+  filepath: data/05_model_input/X_test.csv
+
+
+# ── 06_models ────────────────────────────────────────────────────────────────
+
+best_columns:
+  type: kedro_mlflow.io.artifacts.MlflowArtifactDataset
+  dataset:
+    type: pickle.PickleDataset
+    filepath: data/06_models/best_cols.pkl
+
+production_columns:
+  type: kedro_mlflow.io.artifacts.MlflowArtifactDataset
+  dataset:
+    type: pickle.PickleDataset
+    filepath: data/06_models/production_cols.pkl
+
+production_model:
+  type: kedro_mlflow.io.artifacts.MlflowArtifactDataset
+  dataset:
+    type: pickle.PickleDataset
+    filepath: data/06_models/production_model.pkl
+
+
