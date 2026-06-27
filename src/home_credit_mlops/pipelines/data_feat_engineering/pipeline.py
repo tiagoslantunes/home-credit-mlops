@@ -7,7 +7,7 @@ Order:
   3. to_feature_store      — upload to Hopsworks (no-op if API key absent)
 
 Inputs  (from 03_primary via catalog):
-  preprocessed_train_data, preprocessed_validation_data, preprocessed_test_data
+  application_train_cleaned, application_validation_cleaned, application_test_cleaned
 
 Outputs (to catalog):
   04_feature   : application_train_features, application_validation_features,
@@ -28,10 +28,10 @@ def create_pipeline(**kwargs) -> Pipeline:
             node(
                 func=create_features,
                 inputs=[
-                    "preprocessed_train_data",
-                    "preprocessed_validation_data",
-                    "preprocessed_test_data",
-                    "parameters",
+                    "application_train_cleaned",
+                    "application_validation_cleaned",
+                    "application_test_cleaned",
+                    "params:data_feat_engineering",
                 ],
                 outputs=[
                     "application_train_features",
@@ -46,7 +46,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "application_train_features",
                     "application_validation_features",
                     "application_test_features",
-                    "parameters",
+                    "params:data_feat_engineering",
                 ],
                 outputs=[
                     "X_train_data",
@@ -66,7 +66,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "X_val_data",
                     "y_val_data",
                     "X_test_data",
-                    "parameters",
+                    "params:data_feat_engineering",
                 ],
                 outputs="feature_store_metadata",
                 name="feature_store_node",
