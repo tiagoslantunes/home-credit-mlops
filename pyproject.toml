@@ -82,3 +82,24 @@ ignore = [
 
 [tool.kedro_telemetry]
 project_id = "e897d1db84184e61a021dc7ca508a0ce"
+
+dependencies = [
+    "ipython>=8.10",
+    "jupyterlab>=3.0",
+    "notebook",
+    "kedro~=1.4.0",
+    "kedro-datasets[pandas, matplotlib, plotly, json]",
+    "kedro-mlflow",
+    "mlflow",
+    "shap",
+    "lightgbm",
+    "xgboost",
+    "scikit-learn",
+    "hopsworks",
+    "python-dotenv",
+    "evidently",
+    "great-expectations",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+]
