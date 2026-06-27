@@ -1,5 +1,14 @@
-# This is a boilerplate parameters config generated for pipeline 'data_split'
-# using Kedro 1.4.0.
+# Parameters for the 'data_split' pipeline.
 #
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# Stratified train/validation split of application_train. The split runs
+# BEFORE data_cleaning on purpose: every imputation statistic and feature-drop
+# decision is learned on the training partition only (see data_cleaning.fit_cleaning),
+# so the validation set never leaks into any cleaning decision.
+#
+# Stratification on TARGET preserves the ~11.4:1 class imbalance in both
+# partitions, which matters for a rare-event default-risk problem.
+data_split:
+  target_column: TARGET
+  test_size: 0.2
+  random_state: 42
+  stratify: true

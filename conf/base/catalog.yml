@@ -69,3 +69,55 @@ installments_payments_quality_report:
 credit_card_balance_quality_report:
   type: pandas.CSVDataset
   filepath: data/08_reporting/credit_card_balance_quality_report.csv
+
+
+# ==================
+# DATA SPLIT OUTPUTS
+# ==================
+# Stratified 80/20 split of application_train, produced BEFORE cleaning so that
+# all imputation statistics are fit on the train partition only.
+# save_args index:false avoids writing the row index back as an "Unnamed: 0"
+# column (Kedro reloads CSV from disk between nodes).
+
+application_train_split:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/application_train_split.csv
+  save_args:
+    index: false
+
+application_validation_split:
+  type: pandas.CSVDataset
+  filepath: data/02_intermediate/application_validation_split.csv
+  save_args:
+    index: false
+
+
+# =====================
+# DATA CLEANING OUTPUTS
+# =====================
+# cleaning_params is the fit-on-train artifact (drop lists + imputation
+# statistics + value bounds), reused to clean the validation split and any
+# future serving batch identically. It is a dict, so it stays pickle.
+
+cleaning_params:
+  type: pickle.PickleDataset
+  filepath: data/04_feature/cleaning_params.pkl
+
+application_train_cleaned:
+  type: pandas.CSVDataset
+  filepath: data/03_primary/application_train_cleaned.csv
+  save_args:
+    index: false
+
+application_validation_cleaned:
+  type: pandas.CSVDataset
+  filepath: data/03_primary/application_validation_cleaned.csv
+  save_args:
+    index: false
+
+# Production/holdout batch: cleaned straight from raw with the train-fit artifact.
+application_test_cleaned:
+  type: pandas.CSVDataset
+  filepath: data/03_primary/application_test_cleaned.csv
+  save_args:
+    index: false

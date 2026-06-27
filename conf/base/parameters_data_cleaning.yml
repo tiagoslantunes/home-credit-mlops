@@ -1,75 +1,71 @@
-missing_threshold: 0.6
-days_employed_sentinel: 365243
-cols_to_drop_high_missing:
-- COMMONAREA_MEDI
-- COMMONAREA_AVG
-- COMMONAREA_MODE
-- NONLIVINGAPARTMENTS_MODE
-- NONLIVINGAPARTMENTS_AVG
-- NONLIVINGAPARTMENTS_MEDI
-- FONDKAPREMONT_MODE
-- LIVINGAPARTMENTS_MODE
-- LIVINGAPARTMENTS_AVG
-- LIVINGAPARTMENTS_MEDI
-- FLOORSMIN_AVG
-- FLOORSMIN_MODE
-- FLOORSMIN_MEDI
-- YEARS_BUILD_MEDI
-- YEARS_BUILD_MODE
-- YEARS_BUILD_AVG
-- OWN_CAR_AGE
-housing_triplet_bases:
-- APARTMENTS
-- BASEMENTAREA
-- YEARS_BEGINEXPLUATATION
-- ELEVATORS
-- ENTRANCES
-- FLOORSMAX
-- LANDAREA
-- LIVINGAREA
-- NONLIVINGAREA
-cols_to_drop_multicollinear:
-- APARTMENTS_MEDI
-- BASEMENTAREA_MEDI
-- YEARS_BEGINEXPLUATATION_MEDI
-- ELEVATORS_MEDI
-- ENTRANCES_MEDI
-- FLOORSMAX_MEDI
-- LANDAREA_MEDI
-- LIVINGAREA_MEDI
-- NONLIVINGAREA_MEDI
-- APARTMENTS_MODE
-- BASEMENTAREA_MODE
-- YEARS_BEGINEXPLUATATION_MODE
-- ELEVATORS_MODE
-- ENTRANCES_MODE
-- FLOORSMAX_MODE
-- LANDAREA_MODE
-- LIVINGAREA_MODE
-- NONLIVINGAREA_MODE
-- OBS_60_CNT_SOCIAL_CIRCLE
-- REGION_RATING_CLIENT_W_CITY
-categorical_anomalies:
-  CODE_GENDER:
-    XNA: null
-  NAME_FAMILY_STATUS:
-    Unknown: null
-  ORGANIZATION_TYPE:
-    XNA: Unknown_Org
-categorical_missing_as_category:
-  OCCUPATION_TYPE: Unknown_Occ
-  NAME_TYPE_SUITE: Unknown_Suite
-numerical_imputation_strategy: median
-binary_flag_imputation_strategy: mode
-categorical_imputation_strategy: mode
-secondary_table_null_fill:
-  previous_application:
-    AMT_ANNUITY: 0.0
-  installments_payments:
-    AMT_PAYMENT: 0.0
-secondary_days_sentinel_cols:
-- DAYS_FIRST_DRAWING
-- DAYS_FIRST_DUE
-- DAYS_LAST_DUE_1ST_VERSION
-- DAYS_LAST_DUE
-- DAYS_TERMINATION
+# Parameters for the 'data_cleaning' pipeline (application_train).
+#
+# Decisions follow analises.ipynb. Crucially, every drop list and every
+# imputation value is LEARNED ON THE TRAIN SPLIT (data_cleaning.fit_cleaning)
+# and persisted to `cleaning_params`; apply_cleaning then replays exactly the
+# same transformation on the validation split and on any future batch, so no
+# statistic is ever computed on data the model will be evaluated/served on.
+data_cleaning:
+  id_columns:
+    - SK_ID_CURR
+  target_column: TARGET
+
+  # --- structural feature drops (thresholds applied on the TRAIN split) ---
+  missing_threshold: 0.45        # drop columns with > 45% missing values
+  corr_threshold: 0.9            # of each |r| > 0.9 numeric pair, drop the 2nd column
+  near_constant_threshold: 0.95  # drop columns whose dominant value covers >= 95% of non-nulls
+
+  # --- DAYS_EMPLOYED sentinel handling (correct-methodology addition, not in analises.ipynb) ---
+  # 365243 is a placeholder ("not employed", ~18% of rows). Kept as a real value it
+  # poisons the distribution, so it is turned into NaN + a binary missingness flag and
+  # then imputed with the train median like any other numeric column.
+  days_employed_col: DAYS_EMPLOYED
+  days_employed_flag: DAYS_EMPLOYED_ANOM
+  days_employed_sentinel: 365243
+
+  # --- imputation strategies (analises.ipynb) ---
+  # Filled with 0: absence of a bureau/social-circle record is semantically zero events.
+  zero_fill_cols:
+    - AMT_REQ_CREDIT_BUREAU_MON
+    - AMT_REQ_CREDIT_BUREAU_QRT
+    - AMT_REQ_CREDIT_BUREAU_YEAR
+    - OBS_30_CNT_SOCIAL_CIRCLE
+    - DEF_30_CNT_SOCIAL_CIRCLE
+    - DEF_60_CNT_SOCIAL_CIRCLE
+  # Numeric columns imputed with the train median (listed for documentation + drop protection).
+  median_fill_cols:
+    - AMT_ANNUITY
+    - EXT_SOURCE_2
+    - EXT_SOURCE_3
+    - DAYS_EMPLOYED
+  # Integer-count columns -> train median rounded to the nearest integer (keeps the dtype meaningful).
+  median_int_cols:
+    - CNT_FAM_MEMBERS
+    - DAYS_LAST_PHONE_CHANGE
+  # Categorical columns where missingness is itself a signal -> explicit new category.
+  constant_fill:
+    OCCUPATION_TYPE: Unknown
+  # Conceptually-integer columns (counts / days) that pandas promoted to float because
+  # they held NaN/sentinels before imputation. With no NaN left they are rounded and
+  # cast back to int64 at the end of apply_cleaning, so the dtype matches the meaning.
+  cast_int_cols:
+    - DAYS_EMPLOYED
+    - DAYS_REGISTRATION
+    - OBS_30_CNT_SOCIAL_CIRCLE
+    - DEF_30_CNT_SOCIAL_CIRCLE
+    - OBS_60_CNT_SOCIAL_CIRCLE
+    - DEF_60_CNT_SOCIAL_CIRCLE
+    - AMT_REQ_CREDIT_BUREAU_MON
+    - AMT_REQ_CREDIT_BUREAU_QRT
+    - AMT_REQ_CREDIT_BUREAU_YEAR
+  # Every OTHER column is handled by the generic production fallback in apply_cleaning:
+  #   numeric  -> train median   (e.g. NAME_TYPE_SUITE-style numerics)
+  #   categorical -> train mode   (e.g. NAME_TYPE_SUITE -> "Unaccompanied")
+  # This guarantees a batch/serving frame is never left with NaNs, even for columns
+  # not explicitly enumerated above.
+
+  # --- defensive value capping (production safeguard) ---
+  # Clip numeric columns to the EDA-derived min/max bounds from the data-quality
+  # rules (params:numerical_rules). The train split is already gated by data_quality,
+  # so this only ever bites on drifted validation/batch values.
+  apply_value_bounds: true
