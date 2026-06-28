@@ -1,5 +1,42 @@
-# This is a boilerplate parameters config generated for pipeline 'model_train'
-# using Kedro 1.4.0.
+# Parâmetros para a pipeline 'model_train'.
 #
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# Treina o modelo vencedor da seleção, seleciona o threshold de produção,
+# avalia com o painel de métricas de credit scoring e gera explicações SHAP.
+
+model_train:
+  random_state: 42
+  class_weight: "balanced"
+
+  # ── Decision threshold ──────────────────────────────────────────────────────
+  # Estratégia usada por select_decision_threshold:
+  #   f1_positive | f1_macro | balanced_accuracy | cost
+  #
+  # "cost" minimiza o custo esperado de má-classificação com matriz assimétrica
+  # (Verbraken et al. 2014): num problema de risco de crédito, não detetar um
+  # defaulter (FN) é muito mais custoso do que rejeitar um bom cliente (FP).
+  threshold_strategy: "cost"
+  threshold_validation_fraction: 0.2
+  cost_false_negative: 10.0
+  cost_false_positive: 1.0
+
+  # ── Calibração de probabilidade ─────────────────────────────────────────────
+  # As estimativas de PD devem ser fidedignas; calibrar com isotonic regression.
+  # Isotonic é não-paramétrica e mais flexível que sigmoid (Platt scaling)
+  # quando há dados suficientes.
+  calibrate: true
+  calibration_method: "isotonic"   # isotonic | sigmoid
+  calibration_cv: 3
+
+  # ── SHAP / artefactos de reporting ──────────────────────────────────────────
+  # SHAP (W7) fornece explicabilidade global e local do modelo.
+  # Beeswarm plot: mostra distribuição de valores SHAP por feature.
+  # Bar plot: importância global média.
+  shap_sample_size: 500
+  shap_summary_path: "data/08_reporting/shap_summary.png"
+  shap_importance_path: "data/08_reporting/shap_importance.png"
+  confusion_matrix_path: "data/08_reporting/confusion_matrix.png"
+  calibration_curve_path: "data/08_reporting/calibration_curve.png"
+  pr_curve_path: "data/08_reporting/pr_curve.png"
+
+  # MLflow Model Registry (W2)
+  mlflow_registered_model_name: "home_credit_production_model"

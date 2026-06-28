@@ -183,4 +183,28 @@ production_model:
     type: pickle.PickleDataset
     filepath: data/06_models/production_model.pkl
 
+# Melhores hiperparâmetros selecionados por model_selection (GridSearch+Optuna)
+best_params:
+  type: json.JSONDataset
+  filepath: data/06_models/best_params.json
+
+# Threshold de probabilidade selecionado para produção
+decision_threshold:
+  type: json.JSONDataset
+  filepath: data/06_models/decision_threshold.json
+
+# ── 08_reporting ─────────────────────────────────────────────────────────────
+
+# Painel de métricas do modelo de produção (ROC-AUC, Gini, KS, PR-AUC, Brier…)
+model_metrics:
+  type: json.JSONDataset
+  filepath: data/08_reporting/production_model_metrics.json
+
+# Importâncias SHAP globais (feature, mean_abs_shap)
+shap_importance:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/shap_importance.csv
+  save_args:
+    index: false
+
 

@@ -1,5 +1,68 @@
-# This is a boilerplate parameters config generated for pipeline 'model_selection'
-# using Kedro 1.4.0.
+# Parâmetros para a pipeline 'model_selection'.
 #
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# Compara cinco famílias de modelos via dois mecanismos complementares:
+#   1. GridSearchCV (W2) — pesquisa exaustiva sobre grids por família
+#   2. Optuna TPE (W7)   — pesquisa Bayesiana mais eficiente em espaços grandes
+#
+# O vencedor é escolhido pelo CV ROC-AUC (métrica de ranking adequada
+# a datasets com forte class imbalance como este ~11.4:1).
+#
+# A comparação de cinco famílias segue Lessmann et al. (2015), "Benchmarking
+# state-of-the-art classification algorithms for credit scoring" (EJOR).
+
+model_selection:
+  random_state: 42
+  # Amostra estratificada para pesquisa (dataset completo ~197k linhas)
+  max_search_rows: 50000
+  cv_folds: 4
+  cv_repeats: 1
+  scoring: "roc_auc"
+
+  # Cinco famílias candidatas comparadas head-to-head.
+  # WOE+LogReg é o scorecard interpretável padrão da indústria de crédito
+  # (Siddiqi, "Intelligent Credit Scoring").
+  models:
+    RandomForestClassifier:
+      param_grid:
+        n_estimators: [300]
+        max_depth: [10, 16]
+        min_samples_split: [10]
+        max_features: ["sqrt"]
+
+    HistGradientBoostingClassifier:
+      param_grid:
+        max_iter: [400]
+        learning_rate: [0.05]
+        max_depth: [3, 6]
+        l2_regularization: [0.0, 1.0]
+
+    LGBMClassifier:
+      param_grid:
+        n_estimators: [600]
+        learning_rate: [0.03]
+        num_leaves: [31, 63]
+        colsample_bytree: [0.8]
+
+    GradientBoostingClassifier:
+      param_grid:
+        n_estimators: [120]
+        learning_rate: [0.1]
+        max_depth: [3]
+        subsample: [0.8]
+
+    WOELogisticRegression:
+      param_grid:
+        woe__n_bins: [10, 20]
+        clf__C: [0.1, 1.0]
+
+  # Espaço de pesquisa Optuna vive em código (home_credit_mlops.modeling.suggest_hyperparams)
+  # para garantir que build_estimator e suggest_hyperparams nunca divergem (DRY).
+  # Apenas o budget de trials e as famílias candidatas são configurados aqui.
+  optuna:
+    n_trials: 40
+    model_types:
+      - RandomForestClassifier
+      - HistGradientBoostingClassifier
+      - LGBMClassifier
+      - GradientBoostingClassifier
+      - WOELogisticRegression

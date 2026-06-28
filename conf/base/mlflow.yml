@@ -1,0 +1,9 @@
+server:
+  mlflow_tracking_uri: sqlite:///mlflow.db
+  mlflow_registry_uri: sqlite:///mlflow.db
+
+tracking:
+  experiment:
+    name: home_credit_mlops
+    create_experiment_kwargs:
+      artifact_location: mlruns
