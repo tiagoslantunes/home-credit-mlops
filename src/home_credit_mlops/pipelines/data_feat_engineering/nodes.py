@@ -396,13 +396,13 @@ def to_feature_store(
         .str.strip('_')
     )
  
-    # Upload em batches para não dar timeout no Kafka
     batch_size = 10000
-    for i in range(0, len(upload_df), batch_size):
+    batches = list(range(0, len(upload_df), batch_size))
+    for i in batches:
         batch = upload_df.iloc[i:i+batch_size]
-        fg.insert(batch, write_options={"wait_for_job": False})
-        logger.info(f"Uploaded batch {i//batch_size + 1}: rows {i} to {i+len(batch)}")
-    # fg.insert(upload_df, overwrite = True, write_options={"wait_for_job": True, "use_spark": False,})
+        is_last = (i == batches[-1])
+        fg.insert(batch, write_options={"wait_for_job": is_last})
+        logger.info("Uploaded batch %d: rows %d to %d", i//batch_size + 1, i, i + len(batch))
 
     #fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
     #fg.update_statistics_config()
@@ -423,8 +423,8 @@ def to_feature_store(
         "project": project_name,
         "feature_group": fg_name,
         "feature_group_version": fg_version,
-        #"feature_view": fv_name,
-        "#feature_view_version": fv_version,
+        # "feature_view": fv_name,
+        # "feature_view_version": fv_version,
         "n_features": X_train.shape[1],
         "n_rows_train": len(X_train),
         "n_rows_val": len(X_val),
