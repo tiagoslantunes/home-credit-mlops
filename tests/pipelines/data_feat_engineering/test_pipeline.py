@@ -207,3 +207,86 @@ class TestPipelineRun:
         y_train = catalog.load("y_train_data")
         assert y_train.shape == (100, 1)
         assert "TARGET" in y_train.columns
+
+
+# ── Hopsworks upload tests (mocked) ──────────────────────────────────────────
+
+def _hopsworks_fixtures():
+    """Return (mock_fg, mock_fs, mock_project) wired together."""
+    from unittest.mock import MagicMock
+    mock_fg      = MagicMock()
+    mock_fs      = MagicMock()
+    mock_project = MagicMock()
+    mock_fs.get_or_create_feature_group.return_value = mock_fg
+    mock_project.get_feature_store.return_value = mock_fs
+    return mock_fg, mock_fs, mock_project
+
+
+def _xy(n: int = 15, seed: int = 0):
+    rng = np.random.default_rng(seed)
+    X = pd.DataFrame({
+        "SK_ID_CURR": range(n),
+        "feat_a": rng.uniform(0, 1, n),
+        "feat_b": rng.uniform(0, 1, n),
+    })
+    y = pd.DataFrame({"TARGET": rng.integers(0, 2, n)})
+    return X, y
+
+
+class TestToFeatureStoreHopsworks:
+
+    def _run(self, extra_params=None):
+        from home_credit_mlops.pipelines.data_feat_engineering.nodes import to_feature_store
+        mock_fg, mock_fs, mock_project = _hopsworks_fixtures()
+        X, y = _xy()
+        params = {**PARAMS, **(extra_params or {})}
+        with patch("hopsworks.login", return_value=mock_project), \
+             patch("dotenv.load_dotenv"), \
+             patch.dict("os.environ", {"HOPSWORKS_API_KEY": "fake-key"}):
+            metadata = to_feature_store(X, y, X, y, X, params)
+        return metadata, mock_fg, mock_fs
+
+    def test_upload_returns_success(self):
+        metadata, _, _ = self._run()
+        assert metadata["status"] == "success"
+
+    def test_feature_group_insert_called(self):
+        _, mock_fg, _ = self._run()
+        assert mock_fg.insert.called
+
+    def test_upload_df_has_split_column(self):
+        _, mock_fg, _ = self._run()
+        inserted_df = mock_fg.insert.call_args_list[0][0][0]
+        assert "split" in inserted_df.columns
+        assert set(inserted_df["split"].unique()) == {"train", "validation", "test"}
+
+    def test_upload_df_has_event_time(self):
+        _, mock_fg, _ = self._run()
+        inserted_df = mock_fg.insert.call_args_list[0][0][0]
+        assert "event_time" in inserted_df.columns
+
+    def test_metadata_contains_row_counts(self):
+        metadata, _, _ = self._run()
+        assert metadata["n_rows_train"] == 15
+        assert metadata["n_rows_val"]   == 15
+        assert metadata["n_rows_test"]  == 15
+
+    def test_last_batch_waits_for_job(self):
+        _, mock_fg, _ = self._run()
+        last_call = mock_fg.insert.call_args_list[-1]
+        assert last_call[1]["write_options"]["wait_for_job"] is True
+
+    def test_feature_view_created_when_enabled(self):
+        _, _, mock_fs = self._run({"enable_feature_view": True})
+        assert mock_fs.get_or_create_feature_view.called
+        call_kwargs = mock_fs.get_or_create_feature_view.call_args[1]
+        assert call_kwargs["name"] == PARAMS["hopsworks_feature_view_name"]
+
+    def test_feature_view_skipped_when_disabled(self):
+        _, _, mock_fs = self._run({"enable_feature_view": False})
+        assert not mock_fs.get_or_create_feature_view.called
+
+    def test_feature_view_in_metadata_when_enabled(self):
+        metadata, _, _ = self._run({"enable_feature_view": True})
+        assert "feature_view" in metadata
+        assert metadata["feature_view"] == PARAMS["hopsworks_feature_view_name"]
