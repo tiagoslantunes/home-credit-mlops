@@ -60,4 +60,4 @@ data_feat_engineering:
   hopsworks_feature_group_version: 1
   hopsworks_feature_view_name: home_credit_feature_view
   hopsworks_feature_view_version: 1
-  hopsworks_host: "app.hopsworks.ai"
+  hopsworks_host: "eu-west.cloud.hopsworks.ai"
