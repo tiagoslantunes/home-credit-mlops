@@ -8,6 +8,7 @@ Three public nodes (called by pipeline.py in order):
   3. to_feature_store  — upload all three splits to Hopsworks; no-op if key absent
 """
 
+import datetime
 import logging
 import os
 from typing import Any, Dict, List, Tuple
@@ -369,8 +370,6 @@ def to_feature_store(
     test_df[target_col] = -1  # sentinel: no ground-truth labels for test rows
     test_df["split"]    = "test"
     
-    import datetime
-
     upload_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
     upload_df["event_time"] = datetime.datetime.now()
 
@@ -404,31 +403,36 @@ def to_feature_store(
         fg.insert(batch, write_options={"wait_for_job": is_last})
         logger.info("Uploaded batch %d: rows %d to %d", i//batch_size + 1, i, i + len(batch))
 
-    #fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
-    #fg.update_statistics_config()
-    # fg.compute_statistics()
-
-    fv_name    = parameters.get("hopsworks_feature_view_name", "home_credit_feature_view")
-    fv_version = parameters.get("hopsworks_feature_view_version", 1)
-    # fs.get_or_create_feature_view(
-      # name=fv_name,
-      #  version=fv_version,
-       # description="Home Credit Default Risk — full feature view (all splits)",
-        #labels=["target"],
-        # query=fg.select_all(),
-    # )
+    if parameters.get("enable_statistics", False):
+        fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
+        fg.update_statistics_config()
+        fg.compute_statistics()
+        logger.info("Statistics computation triggered for feature group '%s'.", fg_name)
 
     metadata = {
         "status": "success",
         "project": project_name,
         "feature_group": fg_name,
         "feature_group_version": fg_version,
-        # "feature_view": fv_name,
-        # "feature_view_version": fv_version,
         "n_features": X_train.shape[1],
         "n_rows_train": len(X_train),
         "n_rows_val": len(X_val),
         "n_rows_test": len(X_test),
     }
+
+    fv_name    = parameters.get("hopsworks_feature_view_name", "home_credit_feature_view")
+    fv_version = parameters.get("hopsworks_feature_view_version", 1)
+    if parameters.get("enable_feature_view", False):
+        fs.get_or_create_feature_view(
+            name=fv_name,
+            version=fv_version,
+            description="Home Credit Default Risk — full feature view (all splits)",
+            labels=["target"],
+            query=fg.select_all(),
+        )
+        logger.info("Feature View '%s' v%d created/retrieved.", fv_name, fv_version)
+        metadata["feature_view"] = fv_name
+        metadata["feature_view_version"] = fv_version
+
     logger.info("Feature Store upload complete: %s", metadata)
     return metadata
