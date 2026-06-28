@@ -61,3 +61,7 @@ data_feat_engineering:
   hopsworks_feature_view_name: home_credit_feature_view
   hopsworks_feature_view_version: 1
   hopsworks_host: "eu-west.cloud.hopsworks.ai"
+  # Set to true once the feature group schema is stable in Hopsworks EU-West.
+  enable_feature_view: false
+  # Set to true to trigger Hopsworks statistics computation after upload.
+  enable_statistics: false
