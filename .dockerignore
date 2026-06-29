@@ -1,0 +1,57 @@
+# Strips everything Docker does not need into the image. Keeps the build
+# context — and the resulting image — small.
+
+# Version control / IDE
+.git
+.gitignore
+.idea
+.vscode
+*.swp
+
+# Local Python environments
+.venv
+venv/
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+.mypy_cache
+.ruff_cache
+
+# Notebooks (only the runtime serving code is needed)
+notebooks/
+
+# Raw data and intermediate artefacts — only the trained model and the
+# cleaning params artefact (~5 MB) are copied in explicitly via the Dockerfile.
+data/01_raw/
+data/02_intermediate/
+data/03_primary/
+data/04_feature/application_*
+data/05_model_input/
+data/07_model_output/
+data/08_reporting/
+
+# MLflow run history (large, only useful at training time)
+mlruns/
+mlflow.db
+
+# Tests live outside the image
+tests/
+
+# Build artefacts
+*.egg-info
+build/
+dist/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Project meta
+.telemetry
+.kedro.yml
+*.log

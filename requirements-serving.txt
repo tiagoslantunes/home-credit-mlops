@@ -1,0 +1,25 @@
+# Runtime-only dependencies for the FastAPI serving container.
+# Pinned to the same major versions as requirements.txt to keep training and
+# serving binary-compatible (LightGBM model artefacts are pickled with
+# scikit-learn's CalibratedClassifierCV — both must match the version
+# the model was trained with).
+
+fastapi==0.136.3
+uvicorn==0.49.0
+pydantic==2.13.4
+
+# Model + feature pipeline runtime
+scikit-learn==1.9.0
+lightgbm>=4.3.0
+pandas==2.3.3
+numpy==2.3.5
+scipy==1.17.1
+
+# Config + IO
+PyYAML==6.0.3
+
+# Needed at import time only — the data_cleaning / data_feat_engineering
+# packages' __init__.py modules import from .pipeline, which pulls kedro. The
+# serving layer never *calls* kedro, but Python evaluates __init__.py on first
+# import of a sibling module, so the dependency has to be present.
+kedro==1.4.0
