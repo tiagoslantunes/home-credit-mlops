@@ -9,14 +9,17 @@ of sync with production config the way a hardcoded fixture could.
 """
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 import yaml
 
+from home_credit_mlops.pipelines.data_quality import nodes
 from home_credit_mlops.pipelines.data_quality.nodes import (
-    run_data_quality,
-    run_table_quality,
+    check_quality_gate,
+    validate_data,
+    validate_test_data,
 )
 
 CONF_BASE = Path(__file__).resolve().parents[3] / "conf" / "base"
@@ -27,15 +30,6 @@ NUMERICAL_RULES = PARAMS["numerical_rules"]
 CATEGORICAL_RULES = PARAMS["categorical_rules"]
 TARGET_RULES = PARAMS["target_rules"]
 UNIQUE_COLUMNS = PARAMS["unique_columns"]
-
-SECONDARY_TABLES = [
-    "bureau",
-    "bureau_balance",
-    "previous_application",
-    "pos_cash_balance",
-    "installments_payments",
-    "credit_card_balance",
-]
 
 N_ROWS = 5
 
@@ -64,54 +58,158 @@ def _valid_dataframe() -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def _valid_secondary_dataframe(table_name: str) -> pd.DataFrame:
-    """Same idea as _valid_dataframe, generalized to any secondary table:
-    every column referenced in that table's rule blocks is set to a value
-    that satisfies its rule."""
-    numerical_rules = PARAMS.get(f"{table_name}_numerical_rules", {}) or {}
-    categorical_rules = PARAMS.get(f"{table_name}_categorical_rules", {}) or {}
-    unique_columns = PARAMS.get(f"{table_name}_unique_columns", []) or []
-    not_null_columns = PARAMS.get(f"{table_name}_not_null_columns", []) or []
-
-    data = {}
-
-    for column, bounds in numerical_rules.items():
-        min_value = bounds.get("min_value")
-        max_value = bounds.get("max_value")
-        value = min_value if min_value is not None else max_value
-        data[column] = [value] * N_ROWS
-
-    for column, value_set in categorical_rules.items():
-        data[column] = [value_set[0]] * N_ROWS
-
-    for column in unique_columns:
-        data[column] = list(range(100000, 100000 + N_ROWS))
-
-    for column in not_null_columns:
-        if column not in data:
-            data[column] = [1] * N_ROWS
-
-    return pd.DataFrame(data)
+def _valid_test_dataframe() -> pd.DataFrame:
+    """Same shape as _valid_dataframe but without TARGET, mirroring
+    application_test (no label column to validate)."""
+    return _valid_dataframe().drop(columns=list(TARGET_RULES.keys()))
 
 
 def _run(data: pd.DataFrame):
-    return run_data_quality(
+    """Run both data_quality train nodes back to back, exactly like the
+    pipeline does."""
+    validated_data, report = validate_data(
         data, NUMERICAL_RULES, CATEGORICAL_RULES, TARGET_RULES, UNIQUE_COLUMNS
     )
+    check_quality_gate(report)
+    return validated_data, report
 
 
-def _run_secondary(table_name: str, data: pd.DataFrame):
-    return run_table_quality(
-        data,
-        numerical_rules=PARAMS.get(f"{table_name}_numerical_rules", {}),
-        categorical_rules=PARAMS.get(f"{table_name}_categorical_rules", {}),
-        unique_columns=PARAMS.get(f"{table_name}_unique_columns", []),
-        not_null_columns=PARAMS.get(f"{table_name}_not_null_columns", []),
-        table_name=table_name,
+def _run_test(data: pd.DataFrame):
+    """Run both data_quality test nodes back to back, exactly like the
+    pipeline does."""
+    validated_data, report = validate_test_data(data, NUMERICAL_RULES, CATEGORICAL_RULES, UNIQUE_COLUMNS)
+    check_quality_gate(report)
+    return validated_data, report
+
+
+def _fake_expectation_result(expectation_type, column, success, **result_fields):
+    """Stand-in for a GX ExpectationValidationResult, shaped just enough to
+    satisfy what _build_report actually reads off it (.expectation_config.type,
+    .expectation_config.kwargs["column"], .success, .result.get(...)) -- no
+    Great Expectations object is ever constructed."""
+    return SimpleNamespace(
+        expectation_config=SimpleNamespace(type=expectation_type, kwargs={"column": column}),
+        success=success,
+        result=result_fields,
     )
+
+
+def _fake_validation_results(*expectation_results):
+    """Stand-in for a GX ValidationResult: _build_report only ever reads
+    `.results` off it."""
+    return SimpleNamespace(results=list(expectation_results))
+
+
+class TestBuildReport:
+    """_build_report is a pure function (GX results in, DataFrame out): no
+    Great Expectations context, no filesystem, no real validation run."""
+
+    def test_maps_every_result_field_into_its_own_column(self):
+        element_count = 5
+        unexpected_count = 1
+        unexpected_percent = 20.0
+        partial_unexpected_list = [-1]
+        results = _fake_validation_results(
+            _fake_expectation_result(
+                "expect_column_values_to_be_between",
+                "AMT_INCOME_TOTAL",
+                False,
+                element_count=element_count,
+                unexpected_count=unexpected_count,
+                unexpected_percent=unexpected_percent,
+                observed_value=None,
+                partial_unexpected_list=partial_unexpected_list,
+            )
+        )
+
+        report = nodes._build_report(results, "application_train")
+
+        assert len(report) == 1
+        row = report.iloc[0]
+        assert row["expectation_type"] == "expect_column_values_to_be_between"
+        assert row["column"] == "AMT_INCOME_TOTAL"
+        assert not row["success"]
+        assert row["element_count"] == element_count
+        assert row["unexpected_count"] == unexpected_count
+        assert row["unexpected_percent"] == unexpected_percent
+        assert row["partial_unexpected_list"] == partial_unexpected_list
+
+    def test_fields_absent_from_an_aggregate_expectation_become_none(self):
+        # expect_column_distinct_values_to_be_in_set is a column-aggregate
+        # expectation: GX's real result dict for it has no element_count or
+        # unexpected_percent key at all (see _build_report's docstring).
+        # .get() on the fabricated dict must degrade to None, not KeyError.
+        results = _fake_validation_results(
+            _fake_expectation_result(
+                "expect_column_distinct_values_to_be_in_set",
+                "CODE_GENDER",
+                True,
+                unexpected_count=0,
+                partial_unexpected_list=[],
+            )
+        )
+
+        report = nodes._build_report(results, "application_train")
+
+        row = report.iloc[0]
+        assert row["element_count"] is None
+        assert row["unexpected_percent"] is None
+        assert row["observed_value"] is None
+
+    def test_preserves_order_and_count_for_multiple_results(self):
+        results = _fake_validation_results(
+            _fake_expectation_result(
+                "expect_column_values_to_be_between", "A", True, element_count=5, unexpected_count=0
+            ),
+            _fake_expectation_result(
+                "expect_column_values_to_be_between", "B", False, element_count=5, unexpected_count=2
+            ),
+        )
+
+        report = nodes._build_report(results, "application_train")
+
+        assert list(report["column"]) == ["A", "B"]
+        assert list(report["success"]) == [True, False]
+
+
+class TestCheckQualityGate:
+    """check_quality_gate takes a plain DataFrame and either raises or
+    doesn't: no GX, no validate_data, no filesystem."""
+
+    def test_does_not_raise_when_every_row_succeeded(self):
+        report = pd.DataFrame({"success": [True, True, True]})
+
+        check_quality_gate(report)  # should not raise
+
+    def test_does_not_raise_on_an_empty_report(self):
+        report = pd.DataFrame({"success": pd.Series(dtype=bool)})
+
+        check_quality_gate(report)  # should not raise
+
+    def test_raises_with_the_correct_failure_count(self):
+        report = pd.DataFrame({"success": [True, False, False]})
+
+        with pytest.raises(ValueError, match=r"2 expectation\(s\) failed"):
+            check_quality_gate(report)
+
+    def test_error_message_names_the_failing_column(self):
+        report = pd.DataFrame(
+            {
+                "expectation_type": ["expect_column_values_to_be_between"],
+                "column": ["AMT_INCOME_TOTAL"],
+                "success": [False],
+            }
+        )
+
+        with pytest.raises(ValueError, match="AMT_INCOME_TOTAL"):
+            check_quality_gate(report)
 
 
 class TestDataQualityPipeline:
+    @pytest.fixture(autouse=True)
+    def _isolated_gx_project(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(nodes, "GX_PROJECT_ROOT", str(tmp_path))
+
     def test_valid_data_passes_and_is_returned_unchanged(self):
         data = _valid_dataframe()
 
@@ -122,7 +220,6 @@ class TestDataQualityPipeline:
 
     def test_report_has_one_row_per_expectation(self):
         data = _valid_dataframe()
-        # every target column gets both a value-set AND a not-null expectation
         n_expected = (
             len(NUMERICAL_RULES)
             + len(CATEGORICAL_RULES)
@@ -133,7 +230,16 @@ class TestDataQualityPipeline:
         _, report = _run(data)
 
         assert len(report) == n_expected
-        assert set(report.columns) == {"expectation_type", "column", "success"}
+        assert set(report.columns) == {
+            "expectation_type",
+            "column",
+            "success",
+            "element_count",
+            "unexpected_count",
+            "unexpected_percent",
+            "observed_value",
+            "partial_unexpected_list",
+        }
 
     @pytest.mark.parametrize("column", list(NUMERICAL_RULES.keys()))
     def test_each_numerical_rule_rejects_a_violating_value(self, column):
@@ -197,93 +303,46 @@ class TestDataQualityPipeline:
         with pytest.raises(ValueError, match="Data quality validation failed"):
             _run(data)
 
+    def test_report_is_returned_even_when_validation_fails(self):
+        data = _valid_dataframe()
+        data.loc[0, "AMT_INCOME_TOTAL"] = -1
 
-class TestSecondaryTableQuality:
-    """The 6 secondary raw tables (bureau, bureau_balance,
-    previous_application, pos_cash_balance, installments_payments,
-    credit_card_balance) are validated by the same generic run_table_quality
-    node. These tests exercise every rule for every table from the real YAML,
-    exactly like TestDataQualityPipeline does for application_train."""
-
-    @pytest.mark.parametrize("table_name", SECONDARY_TABLES)
-    def test_valid_data_passes(self, table_name):
-        data = _valid_secondary_dataframe(table_name)
-
-        _, report = _run_secondary(table_name, data)
-
-        assert report["success"].all()
-
-    @pytest.mark.parametrize("table_name", SECONDARY_TABLES)
-    def test_report_has_one_row_per_expectation(self, table_name):
-        numerical_rules = PARAMS.get(f"{table_name}_numerical_rules", {}) or {}
-        categorical_rules = PARAMS.get(f"{table_name}_categorical_rules", {}) or {}
-        unique_columns = PARAMS.get(f"{table_name}_unique_columns", []) or []
-        not_null_columns = PARAMS.get(f"{table_name}_not_null_columns", []) or []
-        n_expected = (
-            len(numerical_rules)
-            + len(categorical_rules)
-            + len(unique_columns)
-            + len(not_null_columns)
+        _, report = validate_data(
+            data, NUMERICAL_RULES, CATEGORICAL_RULES, TARGET_RULES, UNIQUE_COLUMNS
         )
 
-        data = _valid_secondary_dataframe(table_name)
-        _, report = _run_secondary(table_name, data)
+        assert not report["success"].all()
+        failed_row = report[report["column"] == "AMT_INCOME_TOTAL"].iloc[0]
+        assert failed_row["unexpected_count"] == 1
+        assert failed_row["element_count"] == N_ROWS
 
-        assert len(report) == n_expected
+    def test_validates_application_test_without_target_rules(self):
+        # application_test has no TARGET column: validate_test_data must
+        # validate it without ever referencing target_rules.
+        data = _valid_test_dataframe()
 
-    @pytest.mark.parametrize(
-        "table_name,column",
-        [
-            (table_name, column)
-            for table_name in SECONDARY_TABLES
-            for column in (PARAMS.get(f"{table_name}_numerical_rules", {}) or {})
-        ],
-    )
-    def test_each_numerical_rule_rejects_a_violating_value(self, table_name, column):
-        bounds = PARAMS[f"{table_name}_numerical_rules"][column]
-        data = _valid_secondary_dataframe(table_name)
-        if bounds.get("min_value") is not None:
-            data.loc[0, column] = bounds["min_value"] - 1
-        else:
-            data.loc[0, column] = bounds["max_value"] + 1
+        validated_data, report = _run_test(data)
 
-        with pytest.raises(ValueError, match="Data quality validation failed"):
-            _run_secondary(table_name, data)
+        assert validated_data.equals(data)
+        assert report["success"].all()
+        assert "TARGET" not in set(report["column"])
 
-    @pytest.mark.parametrize(
-        "table_name,column",
-        [
-            (table_name, column)
-            for table_name in SECONDARY_TABLES
-            for column in (PARAMS.get(f"{table_name}_categorical_rules", {}) or {})
-        ],
-    )
-    def test_each_categorical_rule_rejects_an_unknown_value(self, table_name, column):
-        data = _valid_secondary_dataframe(table_name)
-        data.loc[0, column] = "NOT_A_REAL_CATEGORY"
+    def test_invalid_application_test_data_raises_and_halts(self):
+        data = _valid_test_dataframe()
+        data.loc[0, "AMT_INCOME_TOTAL"] = -1
 
         with pytest.raises(ValueError, match="Data quality validation failed"):
-            _run_secondary(table_name, data)
+            _run_test(data)
 
-    @pytest.mark.parametrize(
-        "table_name", [t for t in SECONDARY_TABLES if PARAMS.get(f"{t}_unique_columns")]
-    )
-    def test_unique_columns_rule_rejects_duplicate(self, table_name):
-        unique_column = PARAMS[f"{table_name}_unique_columns"][0]
-        data = _valid_secondary_dataframe(table_name)
-        data.loc[1, unique_column] = data.loc[0, unique_column]
+    def test_train_and_test_validations_do_not_collide_in_the_same_gx_project(self):
+        # Regression guard for the whole point of table_name: both
+        # validations persist to the same GX_PROJECT_ROOT, so they must get
+        # independent suites/validation definitions instead of one
+        # overwriting the other's history.
+        _, train_report = _run(_valid_dataframe())
+        _, test_report = _run_test(_valid_test_dataframe())
 
-        with pytest.raises(ValueError, match="Data quality validation failed"):
-            _run_secondary(table_name, data)
-
-    @pytest.mark.parametrize(
-        "table_name",
-        [t for t in SECONDARY_TABLES if PARAMS.get(f"{t}_not_null_columns")],
-    )
-    def test_not_null_columns_rule_rejects_null(self, table_name):
-        not_null_column = PARAMS[f"{table_name}_not_null_columns"][0]
-        data = _valid_secondary_dataframe(table_name)
-        data.loc[0, not_null_column] = None
-
-        with pytest.raises(ValueError, match="Data quality validation failed"):
-            _run_secondary(table_name, data)
+        assert train_report["success"].all()
+        assert test_report["success"].all()
+        assert "TARGET" in set(train_report["column"])
+        assert "TARGET" not in set(test_report["column"])

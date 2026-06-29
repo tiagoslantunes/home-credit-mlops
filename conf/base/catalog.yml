@@ -9,33 +9,7 @@ application_test:
   type: pandas.CSVDataset
   filepath: data/01_raw/application_test.csv
 
-bureau:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/bureau.csv
-
-bureau_balance:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/bureau_balance.csv
-
-previous_application:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/previous_application.csv
-
-pos_cash_balance:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/POS_CASH_balance.csv
-
-installments_payments:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/installments_payments.csv
-
-credit_card_balance:
-  type: pandas.CSVDataset
-  filepath: data/01_raw/credit_card_balance.csv
-
-
 # DATA QUALITY OUTPUTS
-
 
 application_train_validated:
   type: pandas.CSVDataset
@@ -45,30 +19,13 @@ data_quality_report:
   type: pandas.CSVDataset
   filepath: data/08_reporting/data_quality_report.csv
 
-
-bureau_quality_report:
+application_test_validated:
   type: pandas.CSVDataset
-  filepath: data/08_reporting/bureau_quality_report.csv
+  filepath: data/02_intermediate/application_test_validated.csv
 
-bureau_balance_quality_report:
+data_quality_report_test:
   type: pandas.CSVDataset
-  filepath: data/08_reporting/bureau_balance_quality_report.csv
-
-previous_application_quality_report:
-  type: pandas.CSVDataset
-  filepath: data/08_reporting/previous_application_quality_report.csv
-
-pos_cash_balance_quality_report:
-  type: pandas.CSVDataset
-  filepath: data/08_reporting/pos_cash_balance_quality_report.csv
-
-installments_payments_quality_report:
-  type: pandas.CSVDataset
-  filepath: data/08_reporting/installments_payments_quality_report.csv
-
-credit_card_balance_quality_report:
-  type: pandas.CSVDataset
-  filepath: data/08_reporting/credit_card_balance_quality_report.csv
+  filepath: data/08_reporting/data_quality_report_test.csv
 
 
 # ==================
