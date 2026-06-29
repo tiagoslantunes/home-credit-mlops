@@ -208,3 +208,49 @@ shap_importance:
     index: false
 
 
+# ── model_predict outputs ────────────────────────────────────────────────────
+
+# Batch predictions: one row per scored applicant. data/07_model_output/ is
+# Kedro's convention for predictions; the column order is the contract the
+# FastAPI /predict response also exposes.
+predictions:
+  type: pandas.CSVDataset
+  filepath: data/07_model_output/predictions.csv
+  save_args:
+    index: false
+
+# Serving-time classification metrics, only written when a validation y is
+# supplied. Lets the relatório cite that batch-serving performance matches
+# training-time performance.
+serving_metrics:
+  type: json.JSONDataset
+  filepath: data/08_reporting/serving_metrics.json
+
+
+# ── data_drifts outputs ──────────────────────────────────────────────────────
+
+# Per-feature PSI table (feature, psi, drift_level: none/small/major/undefined)
+drift_psi_metrics:
+  type: pandas.CSVDataset
+  filepath: data/08_reporting/drift_psi_metrics.csv
+  save_args:
+    index: false
+
+# Rendered Evidently DataDriftPreset report (open in a browser).
+# fs_args forces UTF-8 because Evidently HTML embeds zero-width and other
+# non-cp1252 characters that the Windows default codec rejects.
+drift_report_html:
+  type: text.TextDataset
+  filepath: data/08_reporting/drift_report.html
+  fs_args:
+    open_args_save:
+      encoding: utf-8
+    open_args_load:
+      encoding: utf-8
+
+# Drift status, drifted feature list, timestamp — consumed by alerting jobs
+drift_alerts:
+  type: json.JSONDataset
+  filepath: data/08_reporting/drift_alerts.json
+
+
