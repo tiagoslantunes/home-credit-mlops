@@ -1,5 +1,34 @@
-# This is a boilerplate parameters config generated for pipeline 'data_drifts'
-# using Kedro 1.4.0.
+# Parameters for the 'data_drifts' pipeline.
 #
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# Drift = how much the distribution of features has shifted between the data
+# the model was trained on (reference) and the data it scores in production
+# (current). Detecting drift early avoids silent model degradation in credit
+# scoring, where a shift in the applicant population invalidates the trained
+# scorecard.
+#
+# Two complementary measures (W6):
+#   1. Population Stability Index (PSI, W6 01_PSI) — industry-standard scalar
+#      per feature. Interpretation thresholds from Siddiqi, "Intelligent
+#      Credit Scoring":
+#         PSI < 0.10              no significant change
+#         0.10 ≤ PSI < 0.25       small/moderate shift (investigate)
+#         PSI ≥ 0.25              major shift (model likely degraded)
+#   2. Evidently DataDriftPreset (W6 04_evidently) — statistical tests per
+#      feature (KS / Wasserstein / chi²) plus a dataset-level "drift_share"
+#      that summarises the proportion of features that drifted.
+
+data_drifts:
+  random_state: 42
+
+  # PSI configuration
+  psi:
+    n_bins: 10
+    bucket_type: "quantiles"   # "bins" or "quantiles"; quantiles is more robust to outliers
+    small_drift_threshold: 0.10
+    major_drift_threshold: 0.25
+
+  # Alert policy: a feature is flagged when its PSI crosses small_drift_threshold;
+  # the run is marked critical when ANY feature crosses major_drift_threshold or
+  # when more than max_drifted_share_critical of features cross small.
+  alerts:
+    max_drifted_share_critical: 0.30

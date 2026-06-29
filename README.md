@@ -1,101 +1,271 @@
-# home-credit-mlops
+<div align="center">
 
-[![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro-ffc900?logo=kedro)](https://kedro.org)
+# Home Credit Default Risk &mdash; MLOps Pipeline
 
-## Overview
+**Proof-of-concept of a production-grade ML pipeline for credit risk scoring.**
+Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot; Docker.
 
-This is your new Kedro project, which was generated using `kedro 1.4.0`.
+[![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro_1.4-ffc900?logo=kedro)](https://kedro.org)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![MLflow](https://img.shields.io/badge/MLflow-3.13-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: Academic](https://img.shields.io/badge/license-academic-lightgrey)](#license)
 
-Take a look at the [Kedro documentation](https://docs.kedro.org) to get started.
+</div>
 
-## Rules and guidelines
+---
 
-In order to get the best out of the template:
+## Table of contents
 
-* Don't remove any lines from the `.gitignore` file we provide
-* Make sure your results can be reproduced by following a data engineering convention
-* Don't commit data to your repository
-* Don't commit any credentials or your local configuration to your repository. Keep all your credentials and local configuration in `conf/local/`
+1. [Project overview](#project-overview)
+2. [Rubric checklist](#rubric-checklist)
+3. [Architecture](#architecture)
+4. [Quick start](#quick-start)
+5. [Run the pipelines](#run-the-pipelines)
+6. [Demo Block D &mdash; Drift](#demo-block-d--drift)
+7. [Demo Block E &mdash; Serving](#demo-block-e--serving)
+8. [Tests](#tests)
+9. [Results](#results)
+10. [Team contributions](#team-contributions)
+11. [Tech stack](#tech-stack)
+12. [License](#license)
 
-## How to install dependencies
+---
 
-Declare any dependencies in `requirements.txt` for `pip` installation.
+## Project overview
 
-To install them, run:
+The Kaggle [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk) task: predict whether a credit applicant with limited credit history will repay (`TARGET = 0`) or default (`TARGET = 1`).
 
-```
-pip install -r requirements.txt
-```
+This repository implements that prediction problem as an **end-to-end MLOps pipeline** &mdash; not a Kaggle-leaderboard model. The grading rubric (and the focus of this work) is the *quality of the pipeline*: modularity, reproducibility, data tests, experiment tracking, explainability, serving, and drift monitoring.
 
-## How to run your Kedro pipeline
+---
 
-You can run your Kedro project with:
+## Rubric checklist
 
-```
-kedro run
-```
+Every mandatory component of the project rubric is implemented and verifiable from the code:
 
-## How to test your Kedro project
+| # | Component | Stack | Where to look |
+|---|---|---|---|
+| 1 | **Unit data tests** | Great Expectations 1.18 | [`pipelines/data_quality`](src/home_credit_mlops/pipelines/data_quality) &middot; reports in `data/08_reporting/*_quality_report.csv` |
+| 1b | **Feature store** | Hopsworks (optional) | [`data_feat_engineering.to_feature_store`](src/home_credit_mlops/pipelines/data_feat_engineering/nodes.py) &middot; no-op when no API key |
+| 2 | **Experimentation + versioning** | MLflow 3 + Optuna 3 | [`pipelines/model_selection`](src/home_credit_mlops/pipelines/model_selection) &middot; [`pipelines/model_train`](src/home_credit_mlops/pipelines/model_train) &middot; runs in `mlflow.db` / `mlruns/` |
+| 3 | **Metrics + explainability** | scikit-learn metrics + SHAP 0.52 | [`generate_shap_explanations`](src/home_credit_mlops/pipelines/model_train/nodes.py) &middot; `data/08_reporting/shap_importance.csv` |
+| 4 | **Model serving + containers** | FastAPI + Docker | [`app/main.py`](app/main.py) &middot; [`Dockerfile`](Dockerfile) |
+| 5 | **Data drift** | Evidently 0.7 + Population Stability Index | [`pipelines/data_drifts`](src/home_credit_mlops/pipelines/data_drifts) &middot; HTML report + alerts JSON in `data/08_reporting/` |
 
-Have a look at the file `tests/test_run.py` for instructions on how to write your tests. You can run your tests as follows:
+---
 
-```
-pytest
-```
+## Architecture
 
-You can configure the coverage threshold in your project's `pyproject.toml` file under the `[tool.coverage.report]` section.
+Eight modular Kedro pipelines that can run end-to-end (`kedro run`) or individually (`kedro run --pipeline=<name>`).
 
-
-## Project dependencies
-
-To see and update the dependency requirements for your project use `requirements.txt`. You can install the project requirements with `pip install -r requirements.txt`.
-
-[Further information about project dependencies](https://docs.kedro.org/en/stable/kedro_project_setup/dependencies.html#project-specific-dependencies)
-
-## How to work with Kedro and notebooks
-
-> Note: Using `kedro jupyter` or `kedro ipython` to run your notebook provides these variables in scope: `context`, 'session', `catalog`, and `pipelines`.
->
-> Jupyter, JupyterLab, and IPython are already included in the project requirements by default, so once you have run `pip install -r requirements.txt` you will not need to take any extra steps before you use them.
-
-### Jupyter
-To use Jupyter notebooks in your Kedro project, you need to install Jupyter:
-
-```
-pip install jupyter
-```
-
-After installing Jupyter, you can start a local notebook server:
+![Kedro pipeline](docs/img/kedro-pipeline.png)
 
 ```
-kedro jupyter notebook
+data_quality        -- validates raw with Great Expectations expectations
+   |
+data_split          -- stratified 80/20 BEFORE cleaning to avoid leakage
+   |
+data_cleaning       -- fit cleaning artefact on TRAIN ONLY; apply to all splits
+   |
+data_feat_engineering -- financial ratios, OHE, target encoding, RFE selection
+   |                                                 |
+model_selection      -- GridSearchCV + Optuna TPE   data_drifts -- PSI + Evidently
+   |
+model_train          -- LightGBM + isotonic calibration + SHAP + MLflow registry
+   |
+model_predict        -- batch scoring   -->   FastAPI (app/main.py) + Docker
 ```
 
-### JupyterLab
-To use JupyterLab, you need to install it:
+---
 
+## Quick start
+
+```powershell
+# 1. Clone
+git clone https://github.com/marianamelo0/home-credit-mlops.git
+cd home-credit-mlops
+
+# 2. One-shot setup (creates .venv, installs every dependency, smoke-tests imports)
+.\setup.ps1
+
+# 3. Drop the 8 Kaggle CSVs into data/01_raw/
+#    Source: https://www.kaggle.com/competitions/home-credit-default-risk/data
+#    (Join the competition once to accept the rules, then "Download All".)
+
+# 4. Activate the venv in any new shell
+. .\.venv\Scripts\Activate.ps1
+
+# 5. Run the full pipeline
+$env:MPLBACKEND="Agg"
+kedro run                           # ~15 min: from raw CSVs to a calibrated model
+
+# 6. Serve the model
+uvicorn app.main:app --port 8000    # browse http://localhost:8000/docs
 ```
-pip install jupyterlab
+
+> `$env:MPLBACKEND="Agg"` is required on Windows / headless setups so the
+> SHAP plotting steps inside `model_train` do not try to open a GUI window.
+
+---
+
+## Run the pipelines
+
+```powershell
+kedro run                                       # end-to-end
+kedro run --pipeline=data_quality               # Great Expectations gate
+kedro run --pipeline=data_split                 # stratified 80/20 split
+kedro run --pipeline=data_cleaning              # fit on train + apply to all
+kedro run --pipeline=data_feat_engineering      # ratios + OHE + target encoding + RFE
+kedro run --pipeline=model_selection            # ~10 min: GridSearch + Optuna over 5 models
+kedro run --pipeline=model_train                # ~30 s: calibrated LightGBM + SHAP + MLflow
+kedro run --pipeline=data_drifts                # PSI per feature + Evidently HTML + alerts
+kedro run --pipeline=model_predict              # ~1 s: score X_val and write predictions
 ```
 
-You can also start JupyterLab:
+The pipeline DAG is visible in [Kedro Viz](https://kedro.org/kedro-viz):
 
-```
-kedro jupyter lab
-```
-
-### IPython
-And if you want to run an IPython session:
-
-```
-kedro ipython
+```powershell
+kedro viz run         # opens http://localhost:4141
 ```
 
-### How to ignore notebook output cells in `git`
-To automatically strip out all output cell contents before committing to `git`, you can use tools like [`nbstripout`](https://github.com/kynan/nbstripout). For example, you can add a hook in `.git/config` with `nbstripout --install`. This will run `nbstripout` before anything is committed to `git`.
+---
 
-> *Note:* Your output cells will be retained locally.
+## Demo Block D &mdash; Drift
 
-## Package your Kedro project
+Compare the training reference (`X_train`) against the current batch (`X_val`) on three layers: per-feature PSI, Evidently statistical tests, and an alert payload.
 
-[Further information about building project documentation and packaging your project](https://docs.kedro.org/en/stable/deploy/package_a_project/#package-an-entire-kedro-project)
+![Drift PSI top features](docs/img/drift_psi.png)
+
+Interpretation thresholds (industry standard, Siddiqi, *Intelligent Credit Scoring*):
+
+| PSI band | Interpretation |
+|---|---|
+| `< 0.10` | No significant change |
+| `0.10 – 0.25` | Small to moderate shift &mdash; investigate |
+| `≥ 0.25` | Major shift &mdash; model likely degraded |
+
+A run is `critical` if **any** feature crosses `0.25` *or* if more than 30 % of features cross `0.10`. The alert is logged at WARNING / ERROR level so any sidecar (Slack, PagerDuty, etc.) can route it. Sample alert payload:
+
+```json
+{
+  "status": "critical",
+  "reason": "2 feature(s) with PSI >= 0.25",
+  "drifted_features_count": 2,
+  "major_drift_features_count": 2,
+  "drifted_share": 0.04,
+  "drifted_features": [
+    { "feature": "OCCUPATION_TYPE_TE",   "psi": 1.88, "drift_level": "major" },
+    { "feature": "ORGANIZATION_TYPE_TE", "psi": 1.03, "drift_level": "major" }
+  ]
+}
+```
+
+Open `data/08_reporting/drift_report.html` for the full interactive Evidently dashboard.
+
+---
+
+## Demo Block E &mdash; Serving
+
+### Online API
+
+`uvicorn app.main:app --port 8000` brings up a four-endpoint FastAPI service. The auto-generated Swagger UI at `http://localhost:8000/docs` makes the contract explorable without any client code:
+
+![FastAPI Swagger UI](docs/img/fastAPI.png)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Liveness probe + summary of loaded artefacts |
+| GET | `/model/schema` | The 51 ordered feature names `/predict` expects |
+| POST | `/predict` | Score an already-engineered feature vector (production contract) |
+| POST | `/predict/raw` | Score a raw application JSON &mdash; the API applies cleaning + feature engineering internally and reports any `fallback_features` |
+
+### Docker
+
+The serving image is a multi-stage build (`python:3.11-slim` runtime, ~750 MB) that bundles the trained model, the cleaning artefact, and the FastAPI app:
+
+```powershell
+docker build -t home-credit-api:latest .
+docker run --rm -p 8000:8000 home-credit-api:latest
+curl http://localhost:8000/health
+```
+
+A `HEALTHCHECK` is configured in the Dockerfile so an orchestrator (Kubernetes, ECS, Docker Compose) can readiness-probe the model load on startup.
+
+### Same primitive everywhere
+
+The `score_features` function in [`pipelines/model_predict/nodes.py`](src/home_credit_mlops/pipelines/model_predict/nodes.py) powers **both** the batch Kedro node and the FastAPI `/predict` route. Batch and online stay in lockstep by construction &mdash; not by convention.
+
+---
+
+## Tests
+
+```powershell
+pytest tests/                                  # full suite
+pytest tests/pipelines/data_drifts/    -v      # 11 tests &mdash; PSI + alert logic
+pytest tests/pipelines/model_predict/  -v      # 14 tests &mdash; scoring primitive
+pytest tests/app/                      -v      # 8 tests &mdash; FastAPI contract
+```
+
+Blocks D + E together: **33 / 33 passing** &middot; 100 % line coverage on `model_predict/nodes.py`.
+
+---
+
+## Results
+
+### Model performance on validation
+
+The grading rubric is the *quality of the pipeline*, not the accuracy of the model &mdash; but the calibrated LightGBM still posts respectable numbers.
+
+| Metric | Value | Where |
+|---|---|---|
+| **ROC-AUC** | 0.7600 | Discrimination across the full score range |
+| **PR-AUC** | 0.2447 | Reflects the strong class imbalance (~8 % positive) |
+| **F1 @ threshold** | 0.2758 | At the production threshold 0.093, chosen via cost-sensitive scoring |
+| **Recall @ threshold** | 0.6491 | Cost-sensitive: missing a defaulter is more costly than a false alarm |
+| **Precision @ threshold** | 0.1751 |  |
+
+Full breakdown in [`data/08_reporting/serving_metrics.json`](data/08_reporting). Recomputed by the batch `model_predict` pipeline so serving-time metrics never drift silently from training-time ones.
+
+### Feature importance &mdash; SHAP
+
+Global feature attribution from [`pipelines/model_train.generate_shap_explanations`](src/home_credit_mlops/pipelines/model_train/nodes.py) (TreeExplainer for the LightGBM base estimator, permutation fallback for the calibrator):
+
+![SHAP top features](docs/img/shap_top.png)
+
+`EXT_SOURCE_2`, `EXT_SOURCE_3` and the credit-to-income ratio dominate &mdash; consistent with the literature on the same dataset.
+
+---
+
+## Team contributions
+
+| Block | Member                                | Pipelines / deliverable |
+|---|---------------------------------------|---|
+| **A** | Mariana Melo                          | `data_quality` (Great Expectations) + EDA |
+| **B** | Alexandra Varela, Francisca Fernandes | `data_cleaning` + `data_feat_engineering` |
+| **C** | Tiago Antunes                         | `data_split` + `model_selection` + `model_train` (MLflow + Optuna + SHAP) |
+| **D** | Rui Ferreira                          | `data_drifts` (PSI + Evidently + alerting) |
+| **E** | Rui Ferreira                          | `model_predict` + FastAPI + Dockerfile |
+| Notebooks | All                                   | `notebooks/01-05_*.ipynb` &mdash; one per block, same visual template |
+| Report &amp; presentation | All                                   | Each member writes the section for their own block |
+
+---
+
+## Tech stack
+
+- **Pipelines:** [Kedro](https://kedro.org/) 1.4 with [`kedro-mlflow`](https://kedro-mlflow.readthedocs.io/) for artefact tracking and model-registry promotion
+- **Data quality:** [Great Expectations](https://greatexpectations.io/) 1.18 (suites generated per table)
+- **Modelling:** [scikit-learn](https://scikit-learn.org/) 1.9 + [LightGBM](https://lightgbm.readthedocs.io/) 4 with isotonic-regression probability calibration (`CalibratedClassifierCV`)
+- **Hyperparameter search:** [Optuna](https://optuna.org/) 3 (TPE sampler) over 5 model families &mdash; LightGBM, HistGradientBoosting, RandomForest, GradientBoosting, WOE-LogReg scorecard
+- **Tracking:** [MLflow](https://mlflow.org/) 3 with SQLite backend (`mlflow.db`) and local file artefact store (`mlruns/`)
+- **Explainability:** [SHAP](https://shap.readthedocs.io/) 0.52 &mdash; TreeExplainer + permutation fallback
+- **Drift:** [Evidently](https://www.evidentlyai.com/) 0.7 (DataDriftPreset) + custom Population Stability Index
+- **Serving:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) on Python 3.11 inside Docker
+- **Tests:** [pytest](https://docs.pytest.org/) 7 + `fastapi.testclient.TestClient`
+
+---
+
+## License
+
+Academic project &mdash; NOVA IMS, MLOps course, Spring 2026. Submitted by Group 1: Alexandra Varela, Francisca Fernandes, Mariana Melo, Rui Ferreira, Tiago Antunes.

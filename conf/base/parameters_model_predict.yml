@@ -1,5 +1,19 @@
-# This is a boilerplate parameters config generated for pipeline 'model_predict'
-# using Kedro 1.4.0.
+# Parameters for the 'model_predict' pipeline.
 #
-# Documentation for this file format can be found in "Parameters"
-# Link: https://docs.kedro.org/en/1.4.0/configuration/parameters.html
+# Scoring is split into two responsibilities so that batch and online serving
+# stay symmetric:
+#   - Kedro pipeline (this file): reads the production_model + threshold, scores
+#     an already-engineered feature batch (X_val_data by default), and writes
+#     out the predictions.
+#   - FastAPI app (`app/main.py`): does the same thing on a SINGLE raw JSON
+#     payload by reusing the upstream cleaning + feature_engineering nodes
+#     before calling the same predict primitive.
+
+model_predict:
+  # Identifier column to copy through to the output predictions table.
+  id_column: "SK_ID_CURR"
+
+  # If a labels dataset is supplied (only true on val/test, never in production),
+  # the pipeline also writes a one-line metrics summary so the relatório can
+  # cite serving-time performance, not just training-time.
+  log_metrics_when_labels_available: true
