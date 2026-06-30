@@ -70,7 +70,7 @@ def _run(data: pd.DataFrame):
     validated_data, report = validate_data(
         data, NUMERICAL_RULES, CATEGORICAL_RULES, TARGET_RULES, UNIQUE_COLUMNS
     )
-    check_quality_gate(report)
+    check_quality_gate(validated_data, report)
     return validated_data, report
 
 
@@ -78,7 +78,7 @@ def _run_test(data: pd.DataFrame):
     """Run both data_quality test nodes back to back, exactly like the
     pipeline does."""
     validated_data, report = validate_test_data(data, NUMERICAL_RULES, CATEGORICAL_RULES, UNIQUE_COLUMNS)
-    check_quality_gate(report)
+    check_quality_gate(validated_data, report)
     return validated_data, report
 
 
@@ -179,18 +179,18 @@ class TestCheckQualityGate:
     def test_does_not_raise_when_every_row_succeeded(self):
         report = pd.DataFrame({"success": [True, True, True]})
 
-        check_quality_gate(report)  # should not raise
+        check_quality_gate(pd.DataFrame(), report)  # should not raise
 
     def test_does_not_raise_on_an_empty_report(self):
         report = pd.DataFrame({"success": pd.Series(dtype=bool)})
 
-        check_quality_gate(report)  # should not raise
+        check_quality_gate(pd.DataFrame(), report)  # should not raise
 
     def test_raises_with_the_correct_failure_count(self):
         report = pd.DataFrame({"success": [True, False, False]})
 
         with pytest.raises(ValueError, match=r"2 expectation\(s\) failed"):
-            check_quality_gate(report)
+            check_quality_gate(pd.DataFrame(), report)
 
     def test_error_message_names_the_failing_column(self):
         report = pd.DataFrame(
@@ -202,7 +202,7 @@ class TestCheckQualityGate:
         )
 
         with pytest.raises(ValueError, match="AMT_INCOME_TOTAL"):
-            check_quality_gate(report)
+            check_quality_gate(pd.DataFrame(), report)
 
 
 class TestDataQualityPipeline:

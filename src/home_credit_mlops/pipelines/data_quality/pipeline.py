@@ -20,13 +20,13 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "params:target_rules",
                     "params:unique_columns",
                 ],
-                outputs=["application_train_validated", "data_quality_report"],
+                outputs=["application_train_checked", "data_quality_report"],
                 name="validate_train_data_node",
             ),
             node(
                 func=check_quality_gate,
-                inputs="data_quality_report",
-                outputs=None,
+                inputs=["application_train_checked", "data_quality_report"],
+                outputs="application_train_validated",
                 name="quality_gate_train_node",
             ),
             node(
@@ -37,13 +37,13 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "params:categorical_rules",
                     "params:unique_columns",
                 ],
-                outputs=["application_test_validated", "data_quality_report_test"],
+                outputs=["application_test_checked", "data_quality_report_test"],
                 name="validate_test_data_node",
             ),
             node(
                 func=check_quality_gate,
-                inputs="data_quality_report_test",
-                outputs=None,
+                inputs=["application_test_checked", "data_quality_report_test"],
+                outputs="application_test_validated",
                 name="quality_gate_test_node",
             ),
         ]

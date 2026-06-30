@@ -225,7 +225,7 @@ def validate_test_data(
     )
 
 
-def check_quality_gate(report: pd.DataFrame) -> None:
+def check_quality_gate(data: pd.DataFrame, report: pd.DataFrame) -> pd.DataFrame:
     """Halt the pipeline if any data quality expectation failed.
 
     Raises:
@@ -237,3 +237,4 @@ def check_quality_gate(report: pd.DataFrame) -> None:
             f"Data quality validation failed. {len(failed)} expectation(s) "
             f"failed:\n{failed.to_string(index=False)}"
         )
+    return data
