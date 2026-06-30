@@ -1,8 +1,9 @@
 """
-Testes unitários para o node data_split.
+Unit tests for the data_split node.
 
-split_data faz um stratified train/validation split ANTES da limpeza,
-para que nenhuma estatística de imputação seja aprendida nos dados de validação.
+split_data performs a train split / stratified validation BEFORE cleaning,
+
+so that no imputation statistics are learned from the validation data.
 """
 
 from __future__ import annotations
