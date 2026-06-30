@@ -55,7 +55,7 @@ data_feat_engineering:
   # ── Hopsworks Feature Store ─────────────────────────────────────────────────
   # Credentials are read from .env (HOPSWORKS_API_KEY, HOPSWORKS_PROJECT).
   # The pipeline continues without error if the key is absent.
-  hopsworks_project: mlops_alexandra
+  hopsworks_project: home_credit_mlops
   hopsworks_feature_group_name: home_credit_features
   hopsworks_feature_group_version: 1
   hopsworks_feature_view_name: home_credit_feature_view
