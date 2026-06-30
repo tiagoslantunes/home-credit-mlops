@@ -271,7 +271,9 @@ def select_features(
         "rfe_estimator_params",
         {"n_estimators": 100, "max_depth": 5, "random_state": 42, "n_jobs": -1},
     )
-
+    if n_select < 1:                                              
+        raise ValueError(f"n_features_to_select must be >= 1, got {n_select}.")
+        
     n_available = X_train_feats.shape[1]
     if n_select > n_available:
         logger.warning(
