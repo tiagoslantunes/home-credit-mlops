@@ -1,12 +1,11 @@
-# ── Feature Engineering ───────────────────────────────────────────────────────
-# All keys nested under data_feat_engineering so pipeline.py can reference them
-# with "params:data_feat_engineering" instead of the whole parameters namespace.
+# Feature Engineering 
+
 data_feat_engineering:
   target_column: TARGET
   id_column: SK_ID_CURR
 
   # EXT_SOURCE columns to aggregate. EXT_SOURCE_1 was dropped by data_cleaning
-  # (>40% missing) — only EXT_SOURCE_2 and EXT_SOURCE_3 exist in 03_primary.
+  # only EXT_SOURCE_2 and EXT_SOURCE_3 exist in 03_primary.
   # The node uses avail = [c for c in ext_source_cols if c in df.columns] so
   # listing EXT_SOURCE_1 here is harmless but kept for documentation.
   ext_source_cols:
@@ -15,7 +14,7 @@ data_feat_engineering:
     - EXT_SOURCE_3
 
   # Binary categorical encoding
-  # CODE_GENDER has 3 values (F, M, XNA — 2 rows) so it goes through OHE instead.
+  # CODE_GENDER has 3 values so it goes through OHE instead.
   # Only truly binary columns (Y/N, no unknowns) belong here.
   binary_map:
     FLAG_OWN_CAR:
@@ -36,14 +35,12 @@ data_feat_engineering:
   target_encoding_n_folds: 5
   target_encoding_random_state: 42
 
-  # ── Feature Selection — RFE ─────────────────────────────────────────────────
-  # Professor's tool (week_05): sklearn RFE with RandomForest base estimator.
+  # Feature Selection — RFE 
+  # Use RFE sklearn RFE with RandomForest base estimator.
   # RFE recursively removes the least important features until n_features_to_select
   # remain. Fitted on training data only — validation and test never influence selection.
   feature_selection_method: rfe
   n_features_to_select: 50
-  # step=5: removes 5 features per iteration → ~9 RF fits to go from ~93 to 50 features.
-  # On 246k train rows this takes ~5-10 min. Increase step to reduce runtime if needed.
   rfe_step: 5
 
   rfe_estimator_params:
@@ -52,7 +49,7 @@ data_feat_engineering:
     random_state: 42
     n_jobs: -1
 
-  # ── Hopsworks Feature Store ─────────────────────────────────────────────────
+  # Hopsworks Feature Store 
   # Credentials are read from .env (HOPSWORKS_API_KEY, HOPSWORKS_PROJECT).
   # The pipeline continues without error if the key is absent.
   hopsworks_project: home_credit_mlops
@@ -62,6 +59,6 @@ data_feat_engineering:
   hopsworks_feature_view_version: 1
   hopsworks_host: "eu-west.cloud.hopsworks.ai"
   # Set to true once the feature group schema is stable in Hopsworks EU-West.
-  enable_feature_view: false
+  enable_feature_view: true
   # Set to true to trigger Hopsworks statistics computation after upload.
-  enable_statistics: false
+  enable_statistics: true
