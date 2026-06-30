@@ -2,9 +2,9 @@
 Data Feature Engineering pipeline.
 
 Order:
-  1. create_features       — engineer features from all three cleaned splits
-  2. select_features       — RFE on train; applied to validation & test
-  3. to_feature_store      — upload to Hopsworks (no-op if API key absent)
+  1. create_features       - engineer features from all three cleaned splits
+  2. select_features       - RFE on train; applied to validation & test
+  3. to_feature_store      - upload to Hopsworks (no-op if API key absent)
 
 Inputs  (from 03_primary via catalog):
   application_train_cleaned, application_validation_cleaned, application_test_cleaned
