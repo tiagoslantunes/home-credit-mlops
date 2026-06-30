@@ -343,7 +343,18 @@ def to_feature_store(
         )
         return {"status": "skipped", "reason": "HOPSWORKS_API_KEY not set"}
 
-    import hopsworks
+    try:
+        # GX v1 removed ExpectationConfiguration — patch for hsfs compatibility
+        import great_expectations.core as _gec
+        if not hasattr(_gec, "ExpectationConfiguration"):
+            class _EC(dict):
+                def __init__(self, expectation_type=None, kwargs=None, meta=None, **kw):
+                    super().__init__(expectation_type=expectation_type, kwargs=kwargs or {}, meta=meta or {})
+            _gec.ExpectationConfiguration = _EC
+        import hopsworks
+    except Exception as exc:
+        logger.warning("Hopsworks import failed (%s) — Feature Store upload skipped.", exc)
+        return {"status": "skipped", "reason": f"import error: {exc}"}
 
     project = hopsworks.login(
     host="eu-west.cloud.hopsworks.ai",
