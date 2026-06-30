@@ -1,7 +1,7 @@
 """
 Tests for data_feat_engineering pipeline nodes.
 
-Pattern: test node functions directly with small synthetic dataframes —
+Pattern: test node functions directly with small synthetic dataframes -
 no real data files needed, no Kedro context required.
 Run with: pytest tests/pipelines/data_feat_engineering/test_nodes.py
 """
@@ -15,9 +15,9 @@ from home_credit_mlops.pipelines.data_feat_engineering.nodes import (
     select_features,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Fixtures
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 def _make_app_df(n: int = 80, seed: int = 42, has_target: bool = True) -> pd.DataFrame:
     """Minimal synthetic application dataframe. Includes NAME_* columns to exercise OHE."""
@@ -40,14 +40,14 @@ def _make_app_df(n: int = 80, seed: int = 42, has_target: bool = True) -> pd.Dat
             "EXT_SOURCE_2":              rng.uniform(0, 1, n),
             "EXT_SOURCE_3":              rng.uniform(0, 1, n),
             "CODE_GENDER":               rng.choice(["M", "F"], n),
-            # >10 unique values → survives OHE threshold, used for target encoding tests
+            # >10 unique values -> survives OHE threshold, used for target encoding tests
             "OCCUPATION_TYPE":           rng.choice(["Laborers", "Sales staff", "Core staff",
                                                       "Managers", "Drivers", "High skill tech staff",
                                                       "Accountants", "Medicine staff", "Security staff",
                                                       "Cooking staff", "Cleaning staff"], n),
             "FLAG_OWN_CAR":              rng.choice(["Y", "N"], n),
             "FLAG_OWN_REALTY":           rng.choice(["Y", "N"], n),
-            # OHE-able columns (cardinality ≤ 10) — needed to exercise _encode_ohe path
+            # OHE-able columns (cardinality <= 10) - needed to exercise _encode_ohe path
             "NAME_CONTRACT_TYPE":        rng.choice(["Cash loans", "Revolving loans"], n),
             "NAME_EDUCATION_TYPE":       rng.choice(["Higher education", "Secondary / secondary special",
                                                       "Incomplete higher", "Lower secondary"], n),
@@ -82,10 +82,8 @@ PARAMS = {
     },
 }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # create_features tests
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestCreateFeatures:
 
@@ -158,9 +156,8 @@ class TestCreateFeatures:
         assert "TARGET" not in test.columns
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # select_features tests
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestSelectFeatures:
 
@@ -203,7 +200,7 @@ class TestSelectFeatures:
         assert "TARGET" in y_val.columns
 
     def test_no_y_test(self):
-        """select_features returns X_test only — test has no ground-truth labels."""
+        """select_features returns X_test only - test has no ground-truth labels."""
         result = select_features(self.train_f, self.val_f, self.test_f, PARAMS)
         assert len(result) == 6  # X_train, y_train, X_val, y_val, X_test, best_cols
 
@@ -221,9 +218,9 @@ class TestSelectFeatures:
         assert X_train.isnull().sum().sum() == 0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # select_features schema error tests
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestSelectFeaturesSchemaError:
 
@@ -237,7 +234,7 @@ class TestSelectFeaturesSchemaError:
 
     def test_val_schema_mismatch_raises(self):
         train_f, val_f, test_f = self._base()
-        # Strip all features from val — any RFE-selected column will be missing
+        # Strip all features from val - any RFE-selected column will be missing
         val_empty = val_f[["TARGET"]]
         with pytest.raises(ValueError, match="X_val missing columns"):
             select_features(train_f, val_empty, test_f, PARAMS)
@@ -250,9 +247,9 @@ class TestSelectFeaturesSchemaError:
             select_features(train_f, val_f, test_empty, PARAMS)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Target encoding tests
-# ─────────────────────────────────────────────────────────────────────────────
+
 
 PARAMS_TE = {**PARAMS, "target_encoding_cols": ["OCCUPATION_TYPE"]}
 
@@ -288,3 +285,35 @@ class TestTargetEncoding:
         assert train.select_dtypes(include="object").empty
         assert val.select_dtypes(include="object").empty
         assert test.select_dtypes(include="object").empty
+
+
+
+# select_features clamp / validation tests
+
+
+class TestSelectFeaturesClamp:
+
+    def _features(self):
+        return create_features(
+            _make_app_df(30, seed=1, has_target=True),
+            _make_app_df(10, seed=2, has_target=True),
+            _make_app_df(8,  seed=3, has_target=False),
+            PARAMS,
+        )
+
+    def test_n_select_clamped_when_exceeds_available(self):
+        train_f, val_f, test_f = self._features()
+        # Exclude TARGET and SK_ID_CURR 
+        n_available = train_f.shape[1] - 2
+        params_excessive = {**PARAMS, "n_features_to_select": n_available + 50}
+
+        X_train, _, _, _, _, best_cols = select_features(train_f, val_f, test_f, params_excessive)
+
+        assert len(best_cols) == n_available
+        assert X_train.shape[1] == n_available + 1  # +1 for SK_ID_CURR
+
+    def test_n_select_below_one_raises(self):
+        train_f, val_f, test_f = self._features()
+        params_invalid = {**PARAMS, "n_features_to_select": 0}
+        with pytest.raises(ValueError, match="n_features_to_select"):
+            select_features(train_f, val_f, test_f, params_invalid)
