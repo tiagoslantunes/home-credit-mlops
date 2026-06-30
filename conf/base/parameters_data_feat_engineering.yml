@@ -24,7 +24,7 @@ data_feat_engineering:
       N: 0
       Y: 1
 
-  # One-hot encoding (applied to categoricals with ≤ threshold unique values)
+  # One-hot encoding (applied to categoricals with <= threshold unique values)
   ohe_cardinality_threshold: 10
 
   # Smoothed cross-validated target encoding (high-cardinality categoricals)
@@ -35,10 +35,10 @@ data_feat_engineering:
   target_encoding_n_folds: 5
   target_encoding_random_state: 42
 
-  # Feature Selection — RFE 
+  # Feature Selection - RFE 
   # Use RFE sklearn RFE with RandomForest base estimator.
   # RFE recursively removes the least important features until n_features_to_select
-  # remain. Fitted on training data only — validation and test never influence selection.
+  # remain. Fitted on training data only - validation and test never influence selection.
   feature_selection_method: rfe
   n_features_to_select: 50
   rfe_step: 5
