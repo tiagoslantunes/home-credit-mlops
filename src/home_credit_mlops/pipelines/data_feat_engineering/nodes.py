@@ -2,10 +2,10 @@
 Data Feature Engineering pipeline nodes.
 
 Three public nodes (called by pipeline.py in order):
-  1. create_features   — financial ratios, age/time, EXT_SOURCE, doc flags, encoding
+  1. create_features   - financial ratios, age/time, EXT_SOURCE, doc flags, encoding
                          (OHE vocabulary and target-encoding stats fitted on train only)
-  2. select_features   — RFE (sklearn) feature selection on train; applied to val & test
-  3. to_feature_store  — upload all three splits to Hopsworks; no-op if key absent
+  2. select_features   - RFE (sklearn) feature selection on train; applied to val & test
+  3. to_feature_store  - upload all three splits to Hopsworks; no-op if key absent
 """
 
 import datetime
@@ -22,7 +22,7 @@ from sklearn.model_selection import KFold
 logger = logging.getLogger(__name__)
 
 
-# ─── Private helpers — feature construction ───────────────────────────────────
+# Helpers for feature construction 
 
 
 def _add_financial_ratios(df: pd.DataFrame) -> pd.DataFrame:
@@ -89,7 +89,7 @@ def _encode_ohe(
     if not low_card:
         return train, val, test
 
-    # Generate dummies from the categorical subset only — avoids carrying non-dummy
+    # Generate dummies from the categorical subset only - avoids carrying non-dummy
     # columns (e.g. TARGET) into the alignment and accidentally adding them to test.
     train_dummies = pd.get_dummies(train[low_card], dtype=int)
     val_dummies   = pd.get_dummies(val[[c for c in low_card if c in val.columns]], dtype=int)
@@ -119,7 +119,10 @@ def _encode_target(
     n_folds: int,
     random_state: int,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Smoothed cross-validated target encoding — statistics derived from train only."""
+    """Smoothed cross-validated target encoding - statistics derived from train only."""
+    train = train.copy()
+    val   = val.copy()
+    test  = test.copy()
     global_mean = train[target_col].mean()
     kf = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
 
@@ -156,7 +159,7 @@ def _encode_target(
     return train, val, test
 
 
-# ─── Public Kedro nodes ───────────────────────────────────────────────────────
+# Public Kedro nodes 
 
 
 def create_features(
@@ -169,7 +172,7 @@ def create_features(
     Feature engineering on the three application-table splits.
 
     Encoding statistics (OHE vocabulary, target-encoding maps) are derived
-    from *train only* and applied to validation and test — prevents leakage.
+    from *train only* and applied to validation and test - prevents leakage.
     The test split has no TARGET column; this is handled transparently.
 
     Returns
@@ -224,7 +227,7 @@ def create_features(
         test  = test.drop( columns=[c for c in leftover if c in test.columns])
 
     logger.info(
-        "create_features complete — train: %s | val: %s | test: %s",
+        "create_features complete - train: %s | val: %s | test: %s",
         train.shape, val.shape, test.shape,
     )
     return train, val, test
@@ -240,7 +243,7 @@ def select_features(
     Recursive Feature Elimination using RandomForest.
 
     RFE is fit on training data only; the selected column set is then applied
-    to validation and test — no information from either influences selection.
+    to validation and test - no information from either influences selection.
     The test split has no TARGET column; only X_test is returned (no y_test).
 
     Returns
@@ -269,9 +272,18 @@ def select_features(
         {"n_estimators": 100, "max_depth": 5, "random_state": 42, "n_jobs": -1},
     )
 
+    n_available = X_train_feats.shape[1]
+    if n_select > n_available:
+        logger.warning(
+            "n_features_to_select=%d exceeds available features (%d); "
+            "clamping to %d.",
+            n_select, n_available, n_available,
+        )
+        n_select = n_available
+
     logger.info(
         "RFE: selecting %d from %d features (step=%d) with RandomForest ...",
-        n_select, X_train_feats.shape[1], step,
+        n_select, n_available, step,
     )
     estimator = RandomForestClassifier(**est_params)
     rfe       = RFE(estimator, n_features_to_select=n_select, step=step)
@@ -321,7 +333,7 @@ def to_feature_store(
     which has no ground-truth labels.
 
     Reads HOPSWORKS_API_KEY and HOPSWORKS_PROJECT from .env at project root.
-    Returns a 'skipped' metadata dict if the key is absent — pipeline continues.
+    Returns a 'skipped' metadata dict if the key is absent - pipeline continues.
 
     Returns
     -------
@@ -338,35 +350,26 @@ def to_feature_store(
 
     if not api_key:
         logger.warning(
-            "HOPSWORKS_API_KEY not set — Feature Store upload skipped. "
+            "HOPSWORKS_API_KEY not set - Feature Store upload skipped. "
             "Add it to .env at the project root."
         )
         return {"status": "skipped", "reason": "HOPSWORKS_API_KEY not set"}
 
-    try:
-        # GX v1 removed ExpectationConfiguration — patch for hsfs compatibility
-        import great_expectations.core as _gec
-        if not hasattr(_gec, "ExpectationConfiguration"):
-            class _EC(dict):
-                def __init__(self, expectation_type=None, kwargs=None, meta=None, **kw):
-                    super().__init__(expectation_type=expectation_type, kwargs=kwargs or {}, meta=meta or {})
-            _gec.ExpectationConfiguration = _EC
-        import hopsworks
-    except Exception as exc:
-        logger.warning("Hopsworks import failed (%s) — Feature Store upload skipped.", exc)
-        return {"status": "skipped", "reason": f"import error: {exc}"}
+    import hopsworks
 
-    project = hopsworks.login(
-    host="eu-west.cloud.hopsworks.ai",
-    api_key_value=api_key,
-    project=project_name
-)
-    fs      = project.get_feature_store()
+    host = parameters["hopsworks_host"]
+
+    try:
+        project = hopsworks.login(host=host, api_key_value=api_key, project=project_name)
+        fs = project.get_feature_store()
+    except Exception as exc:
+        logger.error("Hopsworks login failed (host=%s, project=%s): %s", host, project_name, exc)
+        return {"status": "error", "reason": f"login failed: {exc}"}
 
     target_col = parameters["target_column"]
-    id_col     = parameters.get("id_column", "SK_ID_CURR")
-    fg_name    = parameters.get("hopsworks_feature_group_name", "home_credit_features")
-    fg_version = parameters.get("hopsworks_feature_group_version", 1)
+    id_col     = parameters["id_column"]
+    fg_name    = parameters["hopsworks_feature_group_name"]
+    fg_version = parameters["hopsworks_feature_group_version"]
 
     # Build combined upload df with 'split' column for easy retrieval
     train_df             = X_train.copy()
@@ -380,24 +383,29 @@ def to_feature_store(
     test_df             = X_test.copy()
     test_df[target_col] = -1  # sentinel: no ground-truth labels for test rows
     test_df["split"]    = "test"
-    
+
     upload_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
     upload_df["event_time"] = datetime.datetime.now()
 
-    fg = fs.get_or_create_feature_group(
-        name=fg_name,
-        version=fg_version,
-        description=(
-            "Home Credit Default Risk — RFE-selected engineered features. "
-            "Contains train / validation / test splits (column: split). "
-            "TARGET=-1 marks unlabeled test rows."
-        ),
-        primary_key=[id_col] if id_col in X_train.columns else [],
-        event_time="event_time",
-        online_enabled=False,
-        time_travel_format="HUDI",
-    )
-    # Clean columns names for Hopsworks
+    try:
+        fg = fs.get_or_create_feature_group(
+            name=fg_name,
+            version=fg_version,
+            description=(
+                "Home Credit Default Risk - RFE-selected engineered features. "
+                "Contains train / validation / test splits (column: split). "
+                "TARGET=-1 marks unlabeled test rows."
+            ),
+            primary_key=[id_col] if id_col in X_train.columns else [],
+            event_time="event_time",
+            online_enabled=False,
+            time_travel_format="HUDI",
+        )
+    except Exception as exc:
+        logger.error("Failed to get/create feature group '%s' v%d: %s", fg_name, fg_version, exc)
+        return {"status": "error", "reason": f"feature group creation failed: {exc}"}
+
+    # Clean column names for Hopsworks
     upload_df.columns = (
         upload_df.columns
         .str.lower()
@@ -405,20 +413,40 @@ def to_feature_store(
         .str.replace(r'_+', '_', regex=True)
         .str.strip('_')
     )
- 
+
     batch_size = 10000
     batches = list(range(0, len(upload_df), batch_size))
+    n_batches = len(batches)
+    batches_uploaded = 0
     for i in batches:
-        batch = upload_df.iloc[i:i+batch_size]
-        is_last = (i == batches[-1])
-        fg.insert(batch, write_options={"wait_for_job": is_last})
-        logger.info("Uploaded batch %d: rows %d to %d", i//batch_size + 1, i, i + len(batch))
+        batch = upload_df.iloc[i:i + batch_size]
+        is_last = i == batches[-1]
+        try:
+            fg.insert(batch, write_options={"wait_for_job": is_last})
+        except Exception as exc:
+            logger.error(
+                "Batch upload failed at batch %d/%d (rows %d–%d): %s. "
+                "%d batches already committed to Hopsworks.",
+                batches_uploaded + 1, n_batches, i, i + len(batch) - 1, exc,
+                batches_uploaded,
+            )
+            return {
+                "status": "partial",
+                "reason": f"batch {batches_uploaded + 1}/{n_batches} failed: {exc}",
+                "batches_uploaded": batches_uploaded,
+                "rows_uploaded": batches_uploaded * batch_size,
+            }
+        batches_uploaded += 1
+        logger.info("Uploaded batch %d/%d: rows %d–%d", batches_uploaded, n_batches, i, i + len(batch) - 1)
 
     if parameters.get("enable_statistics", False):
-        fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
-        fg.update_statistics_config()
-        fg.compute_statistics()
-        logger.info("Statistics computation triggered for feature group '%s'.", fg_name)
+        try:
+            fg.statistics_config = {"enabled": True, "histograms": True, "correlations": True}
+            fg.update_statistics_config()
+            fg.compute_statistics()
+            logger.info("Statistics computation triggered for feature group '%s'.", fg_name)
+        except Exception as exc:
+            logger.warning("Statistics computation failed (non-fatal): %s", exc)
 
     metadata = {
         "status": "success",
@@ -431,17 +459,22 @@ def to_feature_store(
         "n_rows_test": len(X_test),
     }
 
-    fv_name    = parameters.get("hopsworks_feature_view_name", "home_credit_feature_view")
-    fv_version = parameters.get("hopsworks_feature_view_version", 1)
+    fv_name    = parameters["hopsworks_feature_view_name"]
+    fv_version = parameters["hopsworks_feature_view_version"]
+
     if parameters.get("enable_feature_view", False):
-        fs.get_or_create_feature_view(
-            name=fv_name,
-            version=fv_version,
-            description="Home Credit Default Risk — full feature view (all splits)",
-            labels=["target"],
-            query=fg.select_all(),
-        )
-        logger.info("Feature View '%s' v%d created/retrieved.", fv_name, fv_version)
+        try:
+            fs.get_or_create_feature_view(
+                name=fv_name,
+                version=fv_version,
+                description="Home Credit Default Risk - full feature view (all splits)",
+                labels=["target"],
+                query=fg.select_all(),
+            )
+            logger.info("Feature View '%s' v%d created/retrieved.", fv_name, fv_version)
+        except Exception as exc:
+            logger.warning("Feature view creation failed (non-fatal): %s", exc)
+            metadata["feature_view_warning"] = str(exc)
         metadata["feature_view"] = fv_name
         metadata["feature_view_version"] = fv_version
 
