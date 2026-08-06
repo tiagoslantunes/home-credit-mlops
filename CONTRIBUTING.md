@@ -7,7 +7,7 @@ project provenance intact.
 
 ## Development setup
 
-On Windows, run `./setup.ps1`. On other platforms, create a Python 3.11 virtual
+On Windows, run `./setup.ps1`. On other platforms, create a Python 3.12 virtual
 environment, install `requirements.txt`, and then install the project with
 `python -m pip install -e ".[dev]"`.
 

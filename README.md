@@ -6,7 +6,7 @@
 Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot; Docker.
 
 [![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro_1.4-ffc900?logo=kedro)](https://kedro.org)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-3.13-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -197,7 +197,7 @@ Open `data/08_reporting/drift_report.html` for the full interactive Evidently da
 
 ### Docker
 
-The serving image is a multi-stage build (`python:3.11-slim` runtime, ~750 MB) that bundles the trained model, the cleaning artefact, and the FastAPI app:
+The serving image is a multi-stage build (`python:3.12-slim` runtime, ~750 MB) that bundles the trained model, the cleaning artefact, and the FastAPI app:
 
 ```powershell
 docker build -t home-credit-api:latest .
@@ -286,7 +286,7 @@ Global feature attribution from [`pipelines/model_train.generate_shap_explanatio
 - **Tracking:** [MLflow](https://mlflow.org/) 3 with SQLite backend (`mlflow.db`) and local file artefact store (`mlruns/`)
 - **Explainability:** [SHAP](https://shap.readthedocs.io/) 0.52 &mdash; TreeExplainer + permutation fallback
 - **Drift:** [Evidently](https://www.evidentlyai.com/) 0.7 (DataDriftPreset) + custom Population Stability Index
-- **Serving:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) on Python 3.11 inside Docker
+- **Serving:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) on Python 3.12 inside Docker
 - **Tests:** [pytest](https://docs.pytest.org/) 7 + `fastapi.testclient.TestClient`
 
 ---

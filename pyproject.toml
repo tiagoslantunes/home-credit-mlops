@@ -5,7 +5,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 name = "home_credit_mlops"
 description = "End-to-end MLOps pipeline for Home Credit default-risk modelling"
 readme = "README.md"

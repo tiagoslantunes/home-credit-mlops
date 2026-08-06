@@ -5,7 +5,7 @@
 # scipy, scikit-learn), the runtime stage copies only the resolved
 # site-packages, the app, and the trained model artefact.
 
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 
 # --------------------------------------------------------------------------- #
 # Build stage                                                                  #
@@ -25,7 +25,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install only the runtime subset of requirements — the full requirements.txt
-# contains dev tools (pytest, jupyter, hopsworks, etc.) we do not want shipped.
+# contains development and notebook tools we do not want shipped.
 COPY requirements-serving.txt .
 RUN pip install --upgrade pip \
     && pip install --prefix=/install -r requirements-serving.txt
