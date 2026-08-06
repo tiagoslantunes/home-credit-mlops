@@ -43,7 +43,7 @@ python -m pip install -r requirements.txt
 python -m pip install -e ".[dev]"
 
 Write-Host "[5/5] Verifying imports ..." -ForegroundColor Cyan
-python -c "import pandas, sklearn, lightgbm, kedro, fastapi, evidently, shap, mlflow, optuna, great_expectations; print('all ok')"
+python -c "import pandas, sklearn, lightgbm, kedro, fastapi, evidently, shap, mlflow, optuna, great_expectations; print('core stack ok')"
 
 Write-Host ""
 Write-Host "Setup complete." -ForegroundColor Green
@@ -52,3 +52,4 @@ Write-Host "  1. Drop the 8 Kaggle CSVs into data/01_raw/"
 Write-Host '  2. $env:MPLBACKEND="Agg"  (matplotlib backend)'
 Write-Host "  3. kedro run                (runs the full pipeline)"
 Write-Host "  4. uvicorn app.main:app --port 8000   (start the API)"
+Write-Host "  5. Optional Hopsworks client: create a separate environment and install requirements-feature-store.txt"

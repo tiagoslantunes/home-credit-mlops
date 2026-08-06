@@ -165,6 +165,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+tmp/
 
 # mlflow local runs
 mlruns/*

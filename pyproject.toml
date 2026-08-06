@@ -5,17 +5,26 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 name = "home_credit_mlops"
+description = "End-to-end MLOps pipeline for Home Credit default-risk modelling"
 readme = "README.md"
+authors = [
+    { name = "Alexandra Varela" },
+    { name = "Francisca Fernandes" },
+    { name = "Mariana Melo" },
+    { name = "Rui Ferreira" },
+    { name = "Tiago Antunes" },
+]
+keywords = ["credit-risk", "kedro", "machine-learning", "mlflow", "mlops"]
 dynamic = [
     "version",
 ]
 dependencies = [
-    "ipython>=8.10",
-    "jupyterlab>=3.0",
-    "notebook",
     "kedro~=1.4.0",
+    "numpy>=2.3,<3",
+    "pandas>=2.3,<2.4",
+    "scikit-learn>=1.9,<2",
 ]
 
 [project.scripts]
@@ -30,6 +39,16 @@ dev = [
     "pytest~=7.2",
     "ruff~=0.12.0",
 ]
+notebooks = [
+    "ipython>=8.10",
+    "jupyterlab>=3.0",
+    "notebook",
+]
+
+[project.urls]
+Repository = "https://github.com/tiagoslantunes/home-credit-mlops"
+Upstream = "https://github.com/marianamelo0/home-credit-mlops"
+"Model card" = "https://github.com/tiagoslantunes/home-credit-mlops/blob/main/MODEL_CARD.md"
 
 [tool.setuptools.dynamic.version]
 attr = "home_credit_mlops.__version__"
@@ -82,24 +101,3 @@ ignore = [
 
 [tool.kedro_telemetry]
 project_id = "e897d1db84184e61a021dc7ca508a0ce"
-
-dependencies = [
-    "ipython>=8.10",
-    "jupyterlab>=3.0",
-    "notebook",
-    "kedro~=1.4.0",
-    "kedro-datasets[pandas, matplotlib, plotly, json]",
-    "kedro-mlflow",
-    "mlflow",
-    "shap",
-    "lightgbm",
-    "xgboost",
-    "scikit-learn",
-    "hopsworks",
-    "python-dotenv",
-    "evidently",
-    "great-expectations",
-    "matplotlib",
-    "seaborn",
-    "plotly",
-]

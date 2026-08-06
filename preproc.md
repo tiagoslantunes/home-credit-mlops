@@ -8,7 +8,7 @@ que está efetivamente implementado nas pipelines Kedro.
 
 ## 1. Visão geral — ordem das pipelines
 
-```
+```text
 01_raw/application_train.csv
         │
         ▼
@@ -55,6 +55,7 @@ idêntica**. Em serving, basta voltar a chamar `apply_cleaning` com este artefac
 ## 3. Relação nó ↔ pipeline ↔ catálogo
 
 ### Pipeline `data_split`
+
 `src/home_credit_mlops/pipelines/data_split/`
 
 | Nó | Função | Inputs | Outputs |
@@ -62,6 +63,7 @@ idêntica**. Em serving, basta voltar a chamar `apply_cleaning` com este artefac
 | `split_application_train_node` | `split_data` | `application_train`, `params:data_split` | `application_train_split`, `application_validation_split` |
 
 ### Pipeline `data_cleaning`
+
 `src/home_credit_mlops/pipelines/data_cleaning/`
 
 | Nó | Função | Inputs | Outputs |
@@ -89,6 +91,7 @@ Parâmetros em `conf/base/parameters_data_split.yml` e
 ## 5. `data_cleaning` — ordem das operações
 
 ### `fit_cleaning` (aprende, só no treino)
+
 1. **Sentinel `DAYS_EMPLOYED`** → NaN + flag (ver §6).
 2. **Drop > 45% missing** (colunas com mais de 45% de nulos).
 3. **Drop alta correlação** `|r| > 0.9` (remove a 2ª coluna de cada par numérico).
@@ -103,6 +106,7 @@ Parâmetros em `conf/base/parameters_data_split.yml` e
 > Resultado: **122 → 48 colunas**, 75 removidas (49 high-missing, 2 high-corr, 24 near-constant).
 
 ### `apply_cleaning` (replay, em treino/val/test/batch)
+
 1. Sentinel `DAYS_EMPLOYED` → NaN + flag.
 2. Drop das colunas aprendidas no fit (`errors="ignore"`).
 3. **Zero-fill** semântico (bureau/social-circle).
@@ -121,6 +125,7 @@ idêntica a treino, validação e test/produção.
 ## 6. O que é feito a cada variável
 
 ### Remoção estrutural (aprendida no treino)
+
 | Regra | Ação | Exemplos removidos |
 |---|---|---|
 | > 45% missing | remover coluna | `EXT_SOURCE_1`, colunas de habitação (`*_AVG/_MEDI/_MODE`), `OWN_CAR_AGE`, … |
@@ -128,11 +133,13 @@ idêntica a treino, validação e test/produção.
 | dominante ≥ 95% | remover coluna | maioria dos `FLAG_DOCUMENT_*`, `AMT_REQ_CREDIT_BUREAU_HOUR/DAY/WEEK`, flags quase-constantes |
 
 ### Tratamento de sentinel (decisão de metodologia, não estava no analises.ipynb)
+
 | Variável | Ação |
 |---|---|
 | `DAYS_EMPLOYED` | valor `365243` ("não empregado", ~18%) → **NaN** + cria flag `DAYS_EMPLOYED_ANOM` (1/0); depois imputado pela mediana do treino |
 
 ### Imputação (decisões do analises.ipynb)
+
 | Variável(eis) | Estratégia | Porquê |
 |---|---|---|
 | `AMT_ANNUITY` | mediana (treino) | residual (12 missing), rácio não fiável p/ Cash loans |
@@ -145,6 +152,7 @@ idêntica a treino, validação e test/produção.
 | `NAME_TYPE_SUITE` | moda (treino) → "Unaccompanied" | residual (0.4%), sem significado especial |
 
 ### Fallback de produção (qualquer outra variável)
+
 | Tipo | Estratégia |
 |---|---|
 | numérica não listada acima | mediana do treino |
@@ -153,12 +161,14 @@ idêntica a treino, validação e test/produção.
 > Garante que um batch de serving nunca fica com NaN, mesmo em colunas não enumeradas.
 
 ### Capping defensivo (salvaguarda de drift)
+
 Cada coluna numérica é "clipped" aos limites min/max das regras de qualidade
 (`params:numerical_rules`), ex.: `EXT_SOURCE_* ∈ [0,1]`, `CNT_CHILDREN ≥ 0`,
 `DAYS_* ≤ 0`. No treino (já validado) nunca corta; só atua em valores
 drifted de validação/produção.
 
 ### Cast de tipos (consistência dtype)
+
 Colunas conceptualmente inteiras que o pandas tinha promovido a `float` por
 terem NaN/sentinel antes da imputação são, no fim (já sem NaN), arredondadas e
 convertidas para `int64` (`cast_int_cols`):

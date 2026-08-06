@@ -6,20 +6,27 @@
 Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot; Docker.
 
 [![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro_1.4-ffc900?logo=kedro)](https://kedro.org)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-3.13-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: Academic](https://img.shields.io/badge/license-academic-lightgrey)](#license)
+[![Quality checks](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml/badge.svg)](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml)
+[![Upstream](https://img.shields.io/badge/fork-upstream-6f42c1?logo=github)](https://github.com/marianamelo0/home-credit-mlops)
 
 </div>
+
+> [!IMPORTANT]
+> This is Tiago Antunes's portfolio fork of the collaborative
+> [Group 1 repository maintained by Mariana Melo](https://github.com/marianamelo0/home-credit-mlops).
+> Tiago's original contribution covers data splitting, model selection, model training,
+> MLflow, Optuna, and SHAP. Full team attribution is preserved below.
 
 ---
 
 ## Table of contents
 
 1. [Project overview](#project-overview)
-2. [Rubric checklist](#rubric-checklist)
+2. [MLOps capability map](#mlops-capability-map)
 3. [Architecture](#architecture)
 4. [Quick start](#quick-start)
 5. [Run the pipelines](#run-the-pipelines)
@@ -29,7 +36,7 @@ Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot;
 9. [Results](#results)
 10. [Team contributions](#team-contributions)
 11. [Tech stack](#tech-stack)
-12. [License](#license)
+12. [Provenance and usage](#provenance-and-usage)
 
 ---
 
@@ -39,16 +46,20 @@ The Kaggle [Home Credit Default Risk](https://www.kaggle.com/competitions/home-c
 
 This repository implements that prediction problem as an **end-to-end MLOps pipeline** &mdash; not a Kaggle-leaderboard model. The grading rubric (and the focus of this work) is the *quality of the pipeline*: modularity, reproducibility, data tests, experiment tracking, explainability, serving, and drift monitoring.
 
+See the [model card](MODEL_CARD.md) for intended use, evaluation context,
+limitations, fairness considerations, and production-readiness boundaries. The
+original [course assignment brief](MLOps_project.pdf) is retained for context.
+
 ---
 
-## Rubric checklist
+## MLOps capability map
 
-Every mandatory component of the project rubric is implemented and verifiable from the code:
+Each MLOps capability is implemented and traceable to its code and generated artefacts:
 
 | # | Component | Stack | Where to look |
 |---|---|---|---|
 | 1 | **Unit data tests** | Great Expectations 1.18 | [`pipelines/data_quality`](src/home_credit_mlops/pipelines/data_quality) &middot; reports in `data/08_reporting/*_quality_report.csv` |
-| 1b | **Feature store** | Hopsworks (optional) | [`data_feat_engineering.to_feature_store`](src/home_credit_mlops/pipelines/data_feat_engineering/nodes.py) &middot; no-op when no API key |
+| 1b | **Feature store** | Hopsworks (optional) | [`data_feat_engineering.to_feature_store`](src/home_credit_mlops/pipelines/data_feat_engineering/nodes.py) &middot; separate [`requirements-feature-store.txt`](requirements-feature-store.txt) environment &middot; no-op when no API key |
 | 2 | **Experimentation + versioning** | MLflow 3 + Optuna 3 | [`pipelines/model_selection`](src/home_credit_mlops/pipelines/model_selection) &middot; [`pipelines/model_train`](src/home_credit_mlops/pipelines/model_train) &middot; runs in `mlflow.db` / `mlruns/` |
 | 3 | **Metrics + explainability** | scikit-learn metrics + SHAP 0.52 | [`generate_shap_explanations`](src/home_credit_mlops/pipelines/model_train/nodes.py) &middot; `data/08_reporting/shap_importance.csv` |
 | 4 | **Model serving + containers** | FastAPI + Docker | [`app/main.py`](app/main.py) &middot; [`Dockerfile`](Dockerfile) |
@@ -62,7 +73,7 @@ Eight modular Kedro pipelines that can run end-to-end (`kedro run`) or individua
 
 ![Kedro pipeline](docs/img/kedro-pipeline.png)
 
-```
+```text
 data_quality        -- validates raw with Great Expectations expectations
    |
 data_split          -- stratified 80/20 BEFORE cleaning to avoid leakage
@@ -84,8 +95,11 @@ model_predict        -- batch scoring   -->   FastAPI (app/main.py) + Docker
 
 ```powershell
 # 1. Clone
-git clone https://github.com/marianamelo0/home-credit-mlops.git
+git clone https://github.com/tiagoslantunes/home-credit-mlops.git
 cd home-credit-mlops
+
+# Optional: track the original group repository
+git remote add upstream https://github.com/marianamelo0/home-credit-mlops.git
 
 # 2. One-shot setup (creates .venv, installs every dependency, smoke-tests imports)
 .\setup.ps1
@@ -183,7 +197,7 @@ Open `data/08_reporting/drift_report.html` for the full interactive Evidently da
 
 ### Docker
 
-The serving image is a multi-stage build (`python:3.11-slim` runtime, ~750 MB) that bundles the trained model, the cleaning artefact, and the FastAPI app:
+The serving image is a multi-stage build (`python:3.12-slim` runtime, ~750 MB) that bundles the trained model, the cleaning artefact, and the FastAPI app:
 
 ```powershell
 docker build -t home-credit-api:latest .
@@ -202,13 +216,24 @@ The `score_features` function in [`pipelines/model_predict/nodes.py`](src/home_c
 ## Tests
 
 ```powershell
-pytest tests/                                  # full suite
-pytest tests/pipelines/data_drifts/    -v      # 11 tests &mdash; PSI + alert logic
-pytest tests/pipelines/model_predict/  -v      # 14 tests &mdash; scoring primitive
-pytest tests/app/                      -v      # 8 tests &mdash; FastAPI contract
+# Data-independent suite used by GitHub Actions
+python -m pytest -q --no-cov tests --ignore=tests/app -k "not TestToFeatureStoreHopsworks"
+
+# Optional Hopsworks client tests (use a dedicated feature-store environment)
+python -m pip install -r requirements-feature-store.txt
+python -m pip install --no-deps -e .
+python -m pytest -q --no-cov tests/pipelines/data_feat_engineering -k "TestToFeatureStoreHopsworks"
+
+# API contract tests after running the pipeline and creating model artefacts
+python -m pytest tests/app/ -v
 ```
 
-Blocks D + E together: **33 / 33 passing** &middot; 100 % line coverage on `model_predict/nodes.py`.
+The CI suite validates pipeline logic without downloading restricted Kaggle
+data or requiring Hopsworks credentials. API tests intentionally require the
+trained artefacts under `data/`, which are excluded from version control.
+The default suite currently contains **226 passing tests**. The nine mocked
+Hopsworks-client tests run in the separate feature-store environment to avoid
+mixing its tighter dependency bounds with the MLflow stack.
 
 ---
 
@@ -261,11 +286,20 @@ Global feature attribution from [`pipelines/model_train.generate_shap_explanatio
 - **Tracking:** [MLflow](https://mlflow.org/) 3 with SQLite backend (`mlflow.db`) and local file artefact store (`mlruns/`)
 - **Explainability:** [SHAP](https://shap.readthedocs.io/) 0.52 &mdash; TreeExplainer + permutation fallback
 - **Drift:** [Evidently](https://www.evidentlyai.com/) 0.7 (DataDriftPreset) + custom Population Stability Index
-- **Serving:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) on Python 3.11 inside Docker
+- **Serving:** [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) on Python 3.12 inside Docker
 - **Tests:** [pytest](https://docs.pytest.org/) 7 + `fastapi.testclient.TestClient`
 
 ---
 
-## License
+## Provenance and usage
 
-Academic project &mdash; NOVA IMS, MLOps course, Spring 2026. Submitted by Group 1: Alexandra Varela, Francisca Fernandes, Mariana Melo, Rui Ferreira, Tiago Antunes.
+Academic group project &mdash; NOVA IMS, MLOps course, Spring 2026. Submitted by
+Alexandra Varela, Francisca Fernandes, Mariana Melo, Rui Ferreira, and Tiago
+Antunes. The [upstream repository](https://github.com/marianamelo0/home-credit-mlops)
+is the source of record; this fork adds portfolio documentation, automated
+quality checks, and packaging metadata without rewriting the project's history.
+
+No open-source license has been supplied by the upstream repository. Public
+visibility does not grant permission to reuse or redistribute the code beyond
+rights provided by applicable law. See [CITATION.cff](CITATION.cff) for
+attribution and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
