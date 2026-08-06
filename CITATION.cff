@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this academic project, cite the full group and the upstream repository."
+title: "Home Credit Default Risk - MLOps Pipeline"
+type: software
+version: "0.1"
+date-released: 2026-06-12
+authors:
+  - family-names: Varela
+    given-names: Alexandra
+  - family-names: Fernandes
+    given-names: Francisca
+  - family-names: Melo
+    given-names: Mariana
+  - family-names: Ferreira
+    given-names: Rui
+  - family-names: Antunes
+    given-names: Tiago
+repository-code: "https://github.com/tiagoslantunes/home-credit-mlops"
+url: "https://github.com/marianamelo0/home-credit-mlops"
+keywords:
+  - credit risk
+  - Kedro
+  - machine learning
+  - MLflow
+  - MLOps

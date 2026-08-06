@@ -1,0 +1,11 @@
+# Optional Hopsworks uploader environment.
+# Keep this separate from requirements.txt because the Hopsworks client has
+# tighter protobuf, fsspec and SQLAlchemy bounds than the MLflow stack.
+hopsworks==5.0.0
+kedro~=1.4.0
+numpy>=1.26.3,<2.5
+pandas>=2.3,<2.4
+python-dotenv>=1.2,<2
+pytest~=7.4
+pytest-cov>=4,<7
+scikit-learn>=1.9,<2

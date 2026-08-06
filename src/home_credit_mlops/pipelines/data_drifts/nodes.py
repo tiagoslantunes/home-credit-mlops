@@ -262,5 +262,5 @@ def raise_drift_alerts(
         "drifted_share": drifted_share,
         "evidently_dataset_drift_share": dataset_drift_share,
         "drifted_features": drifted_features,
-        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }

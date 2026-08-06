@@ -1,0 +1,18 @@
+# Data-independent validation environment used by GitHub Actions.
+# Hopsworks and FastAPI artefact tests are intentionally excluded from this job.
+pytest~=7.4
+pytest-cov>=4,<7
+pytest-mock>=3,<4
+kedro==1.4.0
+numpy==2.3.5
+pandas==2.3.3
+scipy==1.17.1
+scikit-learn==1.9.0
+lightgbm>=4.3,<5
+matplotlib==3.11.0
+mlflow==3.13.0
+optuna>=3.6,<4
+optuna-integration>=3.6,<4
+shap==0.52.0
+great-expectations==1.18.1
+PyYAML>=6,<7
