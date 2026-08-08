@@ -5,12 +5,13 @@
 **Proof-of-concept of a production-grade ML pipeline for credit risk scoring.**
 Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot; Docker.
 
-[![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro_1.4-ffc900?logo=kedro)](https://kedro.org)
+[![Quality checks](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml/badge.svg)](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro_1.4-ffc900?logo=kedro)](https://kedro.org)
 [![MLflow](https://img.shields.io/badge/MLflow-3.13-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Quality checks](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml/badge.svg)](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml)
+[![License](https://img.shields.io/badge/license-all_rights_reserved-6c757d)](LICENSE)
 [![Upstream](https://img.shields.io/badge/fork-upstream-6f42c1?logo=github)](https://github.com/marianamelo0/home-credit-mlops)
 
 </div>
@@ -32,11 +33,12 @@ Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot;
 5. [Run the pipelines](#run-the-pipelines)
 6. [Demo Block D &mdash; Drift](#demo-block-d--drift)
 7. [Demo Block E &mdash; Serving](#demo-block-e--serving)
-8. [Tests](#tests)
+8. [Quality checks](#quality-checks)
 9. [Results](#results)
 10. [Team contributions](#team-contributions)
 11. [Tech stack](#tech-stack)
 12. [Provenance and usage](#provenance-and-usage)
+13. [License](#license)
 
 ---
 
@@ -48,7 +50,7 @@ This repository implements that prediction problem as an **end-to-end MLOps pipe
 
 See the [model card](MODEL_CARD.md) for intended use, evaluation context,
 limitations, fairness considerations, and production-readiness boundaries. The
-original [course assignment brief](MLOps_project.pdf) is retained for context.
+original [course assignment brief](docs/MLOps_project.pdf) is retained for context.
 
 ---
 
@@ -213,7 +215,7 @@ The `score_features` function in [`pipelines/model_predict/nodes.py`](src/home_c
 
 ---
 
-## Tests
+## Quality checks
 
 ```powershell
 # Data-independent suite used by GitHub Actions
@@ -299,7 +301,14 @@ Antunes. The [upstream repository](https://github.com/marianamelo0/home-credit-m
 is the source of record; this fork adds portfolio documentation, automated
 quality checks, and packaging metadata without rewriting the project's history.
 
-No open-source license has been supplied by the upstream repository. Public
-visibility does not grant permission to reuse or redistribute the code beyond
-rights provided by applicable law. See [CITATION.cff](CITATION.cff) for
-attribution and [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
+See [CITATION.cff](CITATION.cff) for attribution and
+[CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes.
+
+---
+
+## License
+
+No open-source license has been granted for the original code or documentation; see
+[LICENSE](LICENSE). Public visibility does not grant permission to reuse or redistribute the
+code beyond the rights provided by applicable law. The Home Credit Default Risk data remains
+subject to the rules of the corresponding Kaggle competition and is not redistributed here.
