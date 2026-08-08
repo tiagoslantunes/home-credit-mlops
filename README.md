@@ -24,21 +24,33 @@ Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot;
 
 ---
 
+## Highlights
+
+- Eight modular Kedro pipelines, runnable end-to-end or one at a time.
+- Great Expectations data gate before any modelling step touches the raw CSVs.
+- Stratified split **before** cleaning, so cleaning artefacts are fitted on train only.
+- GridSearchCV + Optuna TPE tracked in MLflow, with SHAP explanations per run.
+- PSI + Evidently drift monitoring with an alert payload.
+- The same calibrated model served through FastAPI and packaged in Docker.
+
+---
+
 ## Table of contents
 
-1. [Project overview](#project-overview)
-2. [MLOps capability map](#mlops-capability-map)
-3. [Architecture](#architecture)
-4. [Quick start](#quick-start)
-5. [Run the pipelines](#run-the-pipelines)
-6. [Demo Block D &mdash; Drift](#demo-block-d--drift)
-7. [Demo Block E &mdash; Serving](#demo-block-e--serving)
-8. [Quality checks](#quality-checks)
-9. [Results](#results)
-10. [Team contributions](#team-contributions)
-11. [Tech stack](#tech-stack)
-12. [Provenance and usage](#provenance-and-usage)
-13. [License](#license)
+1. [Highlights](#highlights)
+2. [Project overview](#project-overview)
+3. [MLOps capability map](#mlops-capability-map)
+4. [Architecture](#architecture)
+5. [Quick start](#quick-start)
+6. [Run the pipelines](#run-the-pipelines)
+7. [Demo Block D &mdash; Drift](#demo-block-d--drift)
+8. [Demo Block E &mdash; Serving](#demo-block-e--serving)
+9. [Quality checks](#quality-checks)
+10. [Results](#results)
+11. [Authors](#authors)
+12. [Tech stack](#tech-stack)
+13. [Provenance and usage](#provenance-and-usage)
+14. [License](#license)
 
 ---
 
@@ -265,7 +277,7 @@ Global feature attribution from [`pipelines/model_train.generate_shap_explanatio
 
 ---
 
-## Team contributions
+## Authors
 
 | Block | Member                                | Pipelines / deliverable |
 |---|---------------------------------------|---|
