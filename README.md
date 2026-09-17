@@ -2,7 +2,7 @@
 
 # Home Credit Default Risk &mdash; MLOps Pipeline
 
-**Proof-of-concept of a production-grade ML pipeline for credit risk scoring.**
+**An academic credit-risk pipeline with experiment tracking, validation, drift monitoring, and model serving.**
 Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot; Docker.
 
 [![Quality checks](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml/badge.svg)](https://github.com/tiagoslantunes/home-credit-mlops/actions/workflows/quality.yml)
@@ -23,6 +23,13 @@ Built on Kedro 1.4 &middot; MLflow 3 &middot; LightGBM &middot; FastAPI &middot;
 > MLflow, Optuna, and SHAP. Full team attribution is preserved below.
 
 ---
+
+## Start here
+
+Begin with the [architecture](#architecture), [results](#results), and
+[model card](MODEL_CARD.md). These explain what was built and measured without
+requiring the Kaggle data. Running the full pipeline requires the source CSVs and
+produces local model artifacts before serving.
 
 ## Highlights
 
